@@ -76,7 +76,7 @@ impl eframe::App for MyApp {
                             let inner_gap = 10.0;
 
                             ui.strong("Spek-rs");
-                            ui.label("v0.1.0");
+                            ui.label(format!("v{}", env!("CARGO_PKG_VERSION")));
                             ui.add_space(inner_gap);
 
                             if ui.button("Save As...").clicked() {
