@@ -95,6 +95,13 @@ pub fn generate_spectrogram_in_memory(
     } else {
         "combined"
     };
+
+    // let safe_path_string = shell_single_quote(input_path);
+    // let text = format!(
+    //     "drawtext=text='{}':x=10:y=10:fontsize=12:fontcolor=white",
+    //     safe_path_string
+    // );
+
     let lavfi_filter = format!(
         "showspectrumpic=s={}x{}:legend={}:color={}:gain={}:mode={}",
         width,
@@ -191,3 +198,7 @@ pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
         }
     }
 }
+
+// fn shell_single_quote(s: &str) -> String {
+//     format!("'{}'", s.replace('\'', "'\\''"))
+// }
