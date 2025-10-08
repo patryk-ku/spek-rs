@@ -1,2 +1,2 @@
 # spek-rs
-Spek alternative written in Rust
+Spek alternative written in Rust. The program is used to create spectrograms of audio files. Like the original, it uses FFmpeg for audio decoding and egui for the GUI. The main difference from the original is that the legend around the spectrogram is also created by FFmpeg, which makes it look a bit worse. So, basically, this program is a simple GUI for FFmpeg's spectrogram generation feature.
