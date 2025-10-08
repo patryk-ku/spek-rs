@@ -1,0 +1,193 @@
+use eframe::egui::ColorImage;
+use image::GenericImageView;
+use std::io::Read;
+use std::path::Path;
+use std::process::{Command, Stdio};
+
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+pub enum SpectrogramColorScheme {
+    Intensity,
+    Channel,
+    Rainbow,
+    Moreland,
+    Nebulae,
+    Fire,
+    Fiery,
+    Fruit,
+    Cool,
+    Magma,
+    Green,
+    Viridis,
+    Plasma,
+    Cividis,
+    Terrain,
+}
+
+impl SpectrogramColorScheme {
+    fn as_str(&self) -> &'static str {
+        match self {
+            SpectrogramColorScheme::Intensity => "intensity",
+            SpectrogramColorScheme::Channel => "channel",
+            SpectrogramColorScheme::Rainbow => "rainbow",
+            SpectrogramColorScheme::Moreland => "moreland",
+            SpectrogramColorScheme::Nebulae => "nebulae",
+            SpectrogramColorScheme::Fire => "fire",
+            SpectrogramColorScheme::Fiery => "fiery",
+            SpectrogramColorScheme::Fruit => "fruit",
+            SpectrogramColorScheme::Cool => "cool",
+            SpectrogramColorScheme::Magma => "magma",
+            SpectrogramColorScheme::Green => "green",
+            SpectrogramColorScheme::Viridis => "viridis",
+            SpectrogramColorScheme::Plasma => "plasma",
+            SpectrogramColorScheme::Cividis => "cividis",
+            SpectrogramColorScheme::Terrain => "terrain",
+        }
+    }
+
+    pub const VALUES: [Self; 15] = [
+        Self::Intensity,
+        Self::Channel,
+        Self::Rainbow,
+        Self::Moreland,
+        Self::Nebulae,
+        Self::Fire,
+        Self::Fiery,
+        Self::Fruit,
+        Self::Cool,
+        Self::Magma,
+        Self::Green,
+        Self::Viridis,
+        Self::Plasma,
+        Self::Cividis,
+        Self::Terrain,
+    ];
+}
+
+impl std::fmt::Display for SpectrogramColorScheme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+/// Generates a spectrogram by calling ffmpeg and captures the output image from stdout.
+pub fn generate_spectrogram_in_memory(
+    input_path: &str,
+    legend: bool,
+    color_scheme: SpectrogramColorScheme,
+    gain: f32,
+    split_channels: bool,
+    width: u32,
+    height: u32,
+) -> Option<ColorImage> {
+    println!(
+        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, gain: {}, split: {}, size: {}x{}",
+        input_path,
+        legend,
+        color_scheme.as_str(),
+        gain,
+        split_channels,
+        width,
+        height
+    );
+
+    let mode = if split_channels {
+        "separate"
+    } else {
+        "combined"
+    };
+    let lavfi_filter = format!(
+        "showspectrumpic=s={}x{}:legend={}:color={}:gain={}:mode={}",
+        width,
+        height,
+        legend,
+        color_scheme.as_str(),
+        gain,
+        mode
+    );
+
+    let mut cmd = Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            input_path,
+            "-lavfi",
+            &lavfi_filter,
+            "-f",
+            "image2pipe",
+            "-",
+            // "-vcodec",
+            // "png",
+            // "pipe:1",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .ok()?;
+
+    let mut stdout = cmd.stdout.take().unwrap();
+    let mut buffer = Vec::new();
+    if stdout.read_to_end(&mut buffer).is_err() {
+        eprintln!("Failed to read ffmpeg stdout");
+        return None;
+    }
+
+    let status = cmd.wait().ok()?;
+
+    if !status.success() {
+        let mut stderr_output = String::new();
+        if let Some(mut stderr) = cmd.stderr.take() {
+            if stderr.read_to_string(&mut stderr_output).is_ok() {
+                eprintln!("ffmpeg error:\n{}", stderr_output);
+            }
+        }
+        eprintln!("ffmpeg process exited with non-zero status");
+        return None;
+    }
+
+    let image = match image::load_from_memory(&buffer) {
+        Ok(img) => img,
+        Err(e) => {
+            eprintln!("Failed to decode image: {}", e);
+            return None;
+        }
+    };
+
+    let (width, height) = image.dimensions();
+    let rgba_image = image.to_rgba8();
+
+    let color_image =
+        ColorImage::from_rgba_unmultiplied([width as usize, height as usize], rgba_image.as_raw());
+
+    println!("Spectrogram generated successfully.");
+    Some(color_image)
+}
+
+pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
+    if let Some(image) = image {
+        if let Some(pictures_dir) = dirs::picture_dir() {
+            let input_filename = Path::new(input_path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("spectrogram");
+
+            if let Some(path) = rfd::FileDialog::new()
+                .set_file_name(&format!("{}.png", input_filename))
+                .set_directory(&pictures_dir)
+                .save_file()
+            {
+                let pixels: Vec<u8> = image.pixels.iter().flat_map(|p| p.to_array()).collect();
+                if let Some(rgba_image) =
+                    image::RgbaImage::from_raw(image.width() as u32, image.height() as u32, pixels)
+                {
+                    if let Err(e) = rgba_image.save(&path) {
+                        eprintln!("Failed to save image: {}", e);
+                    } else {
+                        println!("Image saved to {:?}", path);
+                    }
+                }
+            }
+        }
+    }
+}

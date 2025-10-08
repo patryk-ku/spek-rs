@@ -1,0 +1,245 @@
+use eframe::egui::{self, ColorImage};
+use std::sync::mpsc;
+use std::thread;
+
+use crate::utils;
+
+pub struct MyApp {
+    texture: Option<egui::TextureHandle>,
+    image: Option<ColorImage>,
+    input_path: String,
+    legend: bool,
+    color_scheme: utils::SpectrogramColorScheme,
+    gain: f32,
+    split_channels: bool,
+    is_generating: bool,
+    image_receiver: Option<mpsc::Receiver<Option<ColorImage>>>,
+    custom_resolution: bool,
+    resolution: [u32; 2],
+}
+
+impl MyApp {
+    pub fn new(image: Option<ColorImage>, input_path: String) -> Self {
+        Self {
+            texture: None,
+            image,
+            input_path,
+            legend: true,
+            color_scheme: utils::SpectrogramColorScheme::Intensity,
+            gain: 1.0,
+            split_channels: false,
+            is_generating: false,
+            image_receiver: None,
+            custom_resolution: false,
+            resolution: [700, 500],
+        }
+    }
+}
+
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Check for a newly generated image from the background thread
+        if let Some(receiver) = &self.image_receiver {
+            if let Ok(maybe_image) = receiver.try_recv() {
+                self.is_generating = false;
+                self.image_receiver = None; // We're done with this receiver
+                if let Some(new_image) = maybe_image {
+                    self.texture = Some(ctx.load_texture(
+                        "spectrogram",
+                        new_image.clone(),
+                        Default::default(),
+                    ));
+                    self.image = Some(new_image);
+                }
+            }
+        }
+
+        if self.texture.is_none() && self.image.is_some() {
+            if let Some(image) = self.image.as_ref() {
+                self.texture =
+                    Some(ctx.load_texture("spectrogram", image.clone(), Default::default()));
+            }
+        }
+
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE)
+            .show(ctx, |ui| {
+                egui::Frame::default()
+                    .fill(ui.visuals().panel_fill)
+                    .inner_margin(egui::Margin::same(8))
+                    .stroke(egui::Stroke::new(
+                        1.0,
+                        ui.visuals().widgets.noninteractive.bg_stroke.color,
+                    ))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let inner_gap = 10.0;
+
+                            ui.strong("Spek-rs");
+                            ui.label("v0.1.0");
+                            ui.add_space(inner_gap);
+
+                            if ui.button("Save As...").clicked() {
+                                utils::save_image(&self.image, &self.input_path);
+                            }
+
+                            ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
+                                ui.horizontal(|ui| {
+                                    let mut trigger_regeneration = false;
+
+                                    ui.add_enabled_ui(!self.is_generating, |ui| {
+                                        // Color scheme combobox
+                                        let old_color_scheme = self.color_scheme;
+                                        egui::ComboBox::from_label("Colors:")
+                                            .selected_text(self.color_scheme.to_string())
+                                            .show_ui(ui, |ui| {
+                                                for color in utils::SpectrogramColorScheme::VALUES {
+                                                    ui.selectable_value(
+                                                        &mut self.color_scheme,
+                                                        color,
+                                                        color.to_string(),
+                                                    );
+                                                }
+                                            });
+                                        if self.color_scheme != old_color_scheme {
+                                            trigger_regeneration = true;
+                                        }
+
+                                        ui.add_space(inner_gap);
+
+                                        // Gain drag input
+                                        let gain_drag_value = egui::DragValue::new(&mut self.gain)
+                                            .speed(1.0)
+                                            .range(1.0..=100.0);
+                                        let gain_response =
+                                            ui.add(gain_drag_value.prefix("Gain: "));
+                                        if gain_response.drag_stopped()
+                                            || gain_response.lost_focus()
+                                        {
+                                            trigger_regeneration = true;
+                                        }
+
+                                        ui.add_space(inner_gap);
+
+                                        // Split channels checkbox
+                                        let old_split_channels = self.split_channels;
+                                        ui.checkbox(&mut self.split_channels, "Split Channels");
+                                        if self.split_channels != old_split_channels {
+                                            trigger_regeneration = true;
+                                        }
+
+                                        ui.add_space(inner_gap);
+
+                                        // Custom resolution checkbox and drag inputs
+                                        let old_custom_resolution = self.custom_resolution;
+                                        ui.checkbox(&mut self.custom_resolution, "Custom Res");
+                                        if self.custom_resolution != old_custom_resolution {
+                                            trigger_regeneration = true;
+                                        }
+
+                                        if self.custom_resolution {
+                                            ui.horizontal(|ui| {
+                                                let width_response = ui.add(
+                                                    egui::DragValue::new(&mut self.resolution[0])
+                                                        // .prefix("Width: ")
+                                                        .speed(10.0)
+                                                        .range(100.0..=7892.0),
+                                                );
+                                                ui.label("x");
+                                                let height_response = ui.add(
+                                                    egui::DragValue::new(&mut self.resolution[1])
+                                                        // .prefix("Height: ")
+                                                        .speed(10.0)
+                                                        .range(100.0..=7992.0),
+                                                );
+                                                if width_response.drag_stopped()
+                                                    || width_response.lost_focus()
+                                                    || height_response.drag_stopped()
+                                                    || height_response.lost_focus()
+                                                {
+                                                    trigger_regeneration = true;
+                                                }
+                                            });
+                                        }
+
+                                        ui.add_space(inner_gap);
+
+                                        // Legend checkbox
+                                        let old_legend = self.legend;
+                                        ui.checkbox(&mut self.legend, "Legend");
+                                        if self.legend != old_legend {
+                                            trigger_regeneration = true;
+                                        }
+                                    });
+
+                                    if trigger_regeneration && !self.is_generating {
+                                        self.is_generating = true;
+                                        let (sender, receiver) = mpsc::channel();
+                                        self.image_receiver = Some(receiver);
+
+                                        let input_path = self.input_path.clone();
+                                        let legend = self.legend;
+                                        let color_scheme = self.color_scheme;
+                                        let gain = self.gain;
+                                        let split_channels = self.split_channels;
+                                        let (width, height) = if self.custom_resolution {
+                                            (self.resolution[0], self.resolution[1])
+                                        } else {
+                                            (700, 500)
+                                        };
+                                        let ctx_clone = ctx.clone();
+
+                                        thread::spawn(move || {
+                                            let image = utils::generate_spectrogram_in_memory(
+                                                &input_path,
+                                                legend,
+                                                color_scheme,
+                                                gain,
+                                                split_channels,
+                                                width,
+                                                height,
+                                            );
+                                            sender.send(image).ok();
+                                            ctx_clone.request_repaint(); // Wake up UI thread
+                                        });
+                                    }
+                                });
+                            });
+                        });
+                    });
+
+                if self.is_generating {
+                    ui.centered_and_justified(|ui| {
+                        ui.spinner();
+                        ui.label("Generating...");
+                    });
+                } else if let Some(texture) = &self.texture {
+                    let available_size = ui.available_size();
+                    let image_size = texture.size_vec2();
+
+                    let image_aspect = image_size.x / image_size.y;
+                    let available_aspect = available_size.x / available_size.y;
+
+                    let new_size = if image_aspect > available_aspect {
+                        // Fit to width
+                        egui::vec2(available_size.x, available_size.x / image_aspect)
+                    } else {
+                        // Fit to height
+                        egui::vec2(available_size.y * image_aspect, available_size.y)
+                    };
+
+                    ui.centered_and_justified(|ui| {
+                        if self.custom_resolution {
+                            ui.image((texture.id(), new_size));
+                        } else {
+                            ui.add(egui::Image::from_texture(texture));
+                        }
+                    });
+                } else {
+                    ui.centered_and_justified(|ui| {
+                        ui.label("Failed to generate or load spectrogram.");
+                    });
+                }
+            });
+    }
+}
