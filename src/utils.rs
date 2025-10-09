@@ -69,21 +69,109 @@ impl std::fmt::Display for SpectrogramColorScheme {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+pub enum SpectogramWinFunc {
+    Rect,
+    Bartlett,
+    Hann,
+    Hanning,
+    Hamming,
+    Blackman,
+    Welch,
+    Flattop,
+    Bharris,
+    Bnuttall,
+    Bhann,
+    Sine,
+    Nuttall,
+    Lanczos,
+    Gauss,
+    Tukey,
+    Dolph,
+    Cauchy,
+    Parzen,
+    Poisson,
+    Bohman,
+    Kaiser,
+}
+
+impl SpectogramWinFunc {
+    fn as_str(&self) -> &'static str {
+        match self {
+            SpectogramWinFunc::Rect => "rect",
+            SpectogramWinFunc::Bartlett => "bartlett",
+            SpectogramWinFunc::Hann => "hann",
+            SpectogramWinFunc::Hanning => "hanning",
+            SpectogramWinFunc::Hamming => "hamming",
+            SpectogramWinFunc::Blackman => "blackman",
+            SpectogramWinFunc::Welch => "welch",
+            SpectogramWinFunc::Flattop => "flattop",
+            SpectogramWinFunc::Bharris => "bharris",
+            SpectogramWinFunc::Bnuttall => "bnuttall",
+            SpectogramWinFunc::Bhann => "bhann",
+            SpectogramWinFunc::Sine => "sine",
+            SpectogramWinFunc::Nuttall => "nuttall",
+            SpectogramWinFunc::Lanczos => "lanczos",
+            SpectogramWinFunc::Gauss => "gauss",
+            SpectogramWinFunc::Tukey => "tukey",
+            SpectogramWinFunc::Dolph => "dolph",
+            SpectogramWinFunc::Cauchy => "cauchy",
+            SpectogramWinFunc::Parzen => "parzen",
+            SpectogramWinFunc::Poisson => "poisson",
+            SpectogramWinFunc::Bohman => "bohman",
+            SpectogramWinFunc::Kaiser => "kaiser",
+        }
+    }
+
+    pub const VALUES: [Self; 22] = [
+        Self::Rect,
+        Self::Bartlett,
+        Self::Hann,
+        Self::Hanning,
+        Self::Hamming,
+        Self::Blackman,
+        Self::Welch,
+        Self::Flattop,
+        Self::Bharris,
+        Self::Bnuttall,
+        Self::Bhann,
+        Self::Sine,
+        Self::Nuttall,
+        Self::Lanczos,
+        Self::Gauss,
+        Self::Tukey,
+        Self::Dolph,
+        Self::Cauchy,
+        Self::Parzen,
+        Self::Poisson,
+        Self::Bohman,
+        Self::Kaiser,
+    ];
+}
+
+impl std::fmt::Display for SpectogramWinFunc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 /// Generates a spectrogram by calling ffmpeg and captures the output image from stdout.
 pub fn generate_spectrogram_in_memory(
     input_path: &str,
     legend: bool,
     color_scheme: SpectrogramColorScheme,
+    win_func: SpectogramWinFunc,
     gain: f32,
     split_channels: bool,
     width: u32,
     height: u32,
 ) -> Option<ColorImage> {
     println!(
-        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, gain: {}, split: {}, size: {}x{}",
+        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, gain: {}, split: {}, size: {}x{}",
         input_path,
         legend,
         color_scheme.as_str(),
+        win_func,
         gain,
         split_channels,
         width,
@@ -103,11 +191,12 @@ pub fn generate_spectrogram_in_memory(
     // );
 
     let lavfi_filter = format!(
-        "showspectrumpic=s={}x{}:legend={}:color={}:gain={}:mode={}",
+        "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:gain={}:mode={}",
         width,
         height,
         legend,
         color_scheme.as_str(),
+        win_func.as_str(),
         gain,
         mode
     );

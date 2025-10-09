@@ -23,6 +23,7 @@ fn main() -> eframe::Result {
         &input_path,
         true,
         utils::SpectrogramColorScheme::Intensity,
+        utils::SpectogramWinFunc::Hann,
         1.0,
         false,
         700,

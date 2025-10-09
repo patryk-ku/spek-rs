@@ -10,6 +10,7 @@ pub struct MyApp {
     input_path: String,
     legend: bool,
     color_scheme: utils::SpectrogramColorScheme,
+    win_func: utils::SpectogramWinFunc,
     gain: f32,
     split_channels: bool,
     is_generating: bool,
@@ -26,6 +27,7 @@ impl MyApp {
             input_path,
             legend: true,
             color_scheme: utils::SpectrogramColorScheme::Intensity,
+            win_func: utils::SpectogramWinFunc::Hann,
             gain: 1.0,
             split_channels: false,
             is_generating: false,
@@ -73,7 +75,7 @@ impl eframe::App for MyApp {
                     ))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            let inner_gap = 10.0;
+                            let inner_gap = 4.0;
 
                             ui.strong("Spek-rs");
                             ui.label(format!("v{}", env!("CARGO_PKG_VERSION")));
@@ -88,6 +90,26 @@ impl eframe::App for MyApp {
                                     let mut trigger_regeneration = false;
 
                                     ui.add_enabled_ui(!self.is_generating, |ui| {
+                                        // Window function combobox
+                                        let old_win_func = self.win_func;
+                                        egui::ComboBox::from_label("F:")
+                                            .selected_text(self.win_func.to_string())
+                                            .show_ui(ui, |ui| {
+                                                for win_function in utils::SpectogramWinFunc::VALUES
+                                                {
+                                                    ui.selectable_value(
+                                                        &mut self.win_func,
+                                                        win_function,
+                                                        win_function.to_string(),
+                                                    );
+                                                }
+                                            });
+                                        if self.win_func != old_win_func {
+                                            trigger_regeneration = true;
+                                        }
+
+                                        ui.add_space(inner_gap);
+
                                         // Color scheme combobox
                                         let old_color_scheme = self.color_scheme;
                                         egui::ComboBox::from_label("Colors:")
@@ -180,6 +202,7 @@ impl eframe::App for MyApp {
                                         let input_path = self.input_path.clone();
                                         let legend = self.legend;
                                         let color_scheme = self.color_scheme;
+                                        let win_func = self.win_func;
                                         let gain = self.gain;
                                         let split_channels = self.split_channels;
                                         let (width, height) = if self.custom_resolution {
@@ -194,6 +217,7 @@ impl eframe::App for MyApp {
                                                 &input_path,
                                                 legend,
                                                 color_scheme,
+                                                win_func,
                                                 gain,
                                                 split_channels,
                                                 width,
