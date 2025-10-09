@@ -12,6 +12,7 @@ pub struct MyApp {
     color_scheme: utils::SpectrogramColorScheme,
     win_func: utils::SpectogramWinFunc,
     gain: f32,
+    saturation: f32,
     split_channels: bool,
     is_generating: bool,
     image_receiver: Option<mpsc::Receiver<Option<ColorImage>>>,
@@ -29,11 +30,12 @@ impl MyApp {
             color_scheme: utils::SpectrogramColorScheme::Intensity,
             win_func: utils::SpectogramWinFunc::Hann,
             gain: 1.0,
+            saturation: 1.0,
             split_channels: false,
             is_generating: false,
             image_receiver: None,
             custom_resolution: false,
-            resolution: [700, 500],
+            resolution: [800, 500],
         }
     }
 }
@@ -129,6 +131,21 @@ impl eframe::App for MyApp {
 
                                         ui.add_space(inner_gap);
 
+                                        // Saturation drag input
+                                        let saturation_drag_value =
+                                            egui::DragValue::new(&mut self.saturation)
+                                                .speed(0.1)
+                                                .range(-10.0..=10.0);
+                                        let saturation_response =
+                                            ui.add(saturation_drag_value.prefix("Saturation: "));
+                                        if saturation_response.drag_stopped()
+                                            || saturation_response.lost_focus()
+                                        {
+                                            trigger_regeneration = true;
+                                        }
+
+                                        ui.add_space(inner_gap);
+
                                         // Gain drag input
                                         let gain_drag_value = egui::DragValue::new(&mut self.gain)
                                             .speed(1.0)
@@ -204,11 +221,12 @@ impl eframe::App for MyApp {
                                         let color_scheme = self.color_scheme;
                                         let win_func = self.win_func;
                                         let gain = self.gain;
+                                        let saturation = self.saturation;
                                         let split_channels = self.split_channels;
                                         let (width, height) = if self.custom_resolution {
                                             (self.resolution[0], self.resolution[1])
                                         } else {
-                                            (700, 500)
+                                            (800, 500)
                                         };
                                         let ctx_clone = ctx.clone();
 
@@ -219,6 +237,7 @@ impl eframe::App for MyApp {
                                                 color_scheme,
                                                 win_func,
                                                 gain,
+                                                saturation,
                                                 split_channels,
                                                 width,
                                                 height,

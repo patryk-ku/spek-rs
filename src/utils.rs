@@ -162,17 +162,19 @@ pub fn generate_spectrogram_in_memory(
     color_scheme: SpectrogramColorScheme,
     win_func: SpectogramWinFunc,
     gain: f32,
+    saturation: f32,
     split_channels: bool,
     width: u32,
     height: u32,
 ) -> Option<ColorImage> {
     println!(
-        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, gain: {}, split: {}, size: {}x{}",
+        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, gain: {}, saturation: {}, split: {}, size: {}x{}",
         input_path,
         legend,
         color_scheme.as_str(),
         win_func,
         gain,
+        saturation,
         split_channels,
         width,
         height
@@ -191,13 +193,14 @@ pub fn generate_spectrogram_in_memory(
     // );
 
     let lavfi_filter = format!(
-        "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:gain={}:mode={}",
+        "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:gain={}:saturation={}:mode={}",
         width,
         height,
         legend,
         color_scheme.as_str(),
         win_func.as_str(),
         gain,
+        saturation,
         mode
     );
 

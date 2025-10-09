@@ -25,15 +25,16 @@ fn main() -> eframe::Result {
         utils::SpectrogramColorScheme::Intensity,
         utils::SpectogramWinFunc::Hann,
         1.0,
+        1.0,
         false,
-        700,
+        800,
         500,
     );
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([982.0, 628.0 + 29.0])
-            .with_min_inner_size([982.0, 628.0 + 29.0])
+            .with_inner_size([800.0 + 282.0, 500.0 + 128.0 + 39.0]) // spectogram + legend, spectogram + legend + menu bar
+            .with_min_inner_size([800.0 + 282.0, 500.0 + 128.0 + 39.0])
             .with_resizable(true),
         ..Default::default()
     };
