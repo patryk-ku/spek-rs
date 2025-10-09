@@ -155,12 +155,51 @@ impl std::fmt::Display for SpectogramWinFunc {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+pub enum SpectrogramScale {
+    Lin,
+    Sqrt,
+    Cbrt,
+    Log,
+    FourthRt,
+    FifthRt,
+}
+
+impl SpectrogramScale {
+    fn as_str(&self) -> &'static str {
+        match self {
+            SpectrogramScale::Lin => "lin",
+            SpectrogramScale::Sqrt => "sqrt",
+            SpectrogramScale::Cbrt => "cbrt",
+            SpectrogramScale::Log => "log",
+            SpectrogramScale::FourthRt => "4thrt",
+            SpectrogramScale::FifthRt => "5thrt",
+        }
+    }
+
+    pub const VALUES: [Self; 6] = [
+        Self::Lin,
+        Self::Sqrt,
+        Self::Cbrt,
+        Self::Log,
+        Self::FourthRt,
+        Self::FifthRt,
+    ];
+}
+
+impl std::fmt::Display for SpectrogramScale {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// Generates a spectrogram by calling ffmpeg and captures the output image from stdout.
 pub fn generate_spectrogram_in_memory(
     input_path: &str,
     legend: bool,
     color_scheme: SpectrogramColorScheme,
     win_func: SpectogramWinFunc,
+    scale: SpectrogramScale,
     gain: f32,
     saturation: f32,
     split_channels: bool,
@@ -168,11 +207,12 @@ pub fn generate_spectrogram_in_memory(
     height: u32,
 ) -> Option<ColorImage> {
     println!(
-        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, gain: {}, saturation: {}, split: {}, size: {}x{}",
+        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, scale: {}, gain: {}, saturation: {}, split: {}, size: {}x{}",
         input_path,
         legend,
         color_scheme.as_str(),
         win_func,
+        scale,
         gain,
         saturation,
         split_channels,
@@ -193,12 +233,13 @@ pub fn generate_spectrogram_in_memory(
     // );
 
     let lavfi_filter = format!(
-        "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:gain={}:saturation={}:mode={}",
+        "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:scale={}:gain={}:saturation={}:mode={}",
         width,
         height,
         legend,
         color_scheme.as_str(),
         win_func.as_str(),
+        scale.as_str(),
         gain,
         saturation,
         mode

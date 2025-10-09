@@ -24,6 +24,7 @@ fn main() -> eframe::Result {
         true,
         utils::SpectrogramColorScheme::Intensity,
         utils::SpectogramWinFunc::Hann,
+        utils::SpectrogramScale::Log,
         1.0,
         1.0,
         false,

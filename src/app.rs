@@ -11,6 +11,7 @@ pub struct MyApp {
     legend: bool,
     color_scheme: utils::SpectrogramColorScheme,
     win_func: utils::SpectogramWinFunc,
+    scale: utils::SpectrogramScale,
     gain: f32,
     saturation: f32,
     split_channels: bool,
@@ -29,6 +30,7 @@ impl MyApp {
             legend: true,
             color_scheme: utils::SpectrogramColorScheme::Intensity,
             win_func: utils::SpectogramWinFunc::Hann,
+            scale: utils::SpectrogramScale::Log,
             gain: 1.0,
             saturation: 1.0,
             split_channels: false,
@@ -124,6 +126,7 @@ impl eframe::App for MyApp {
                                                     self.color_scheme =
                                                         utils::SpectrogramColorScheme::Intensity;
                                                     self.win_func = utils::SpectogramWinFunc::Hann;
+                                                    self.scale = utils::SpectrogramScale::Log;
                                                     self.gain = 1.0;
                                                     self.saturation = 1.0;
                                                     self.split_channels = false;
@@ -135,10 +138,32 @@ impl eframe::App for MyApp {
 
                                         ui.add_space(inner_gap);
 
+                                        // Scale combobox
+                                        let old_scale = self.scale;
+                                        egui::ComboBox::from_label("Scale:")
+                                            .selected_text(self.scale.to_string())
+                                            .width(55.0)
+                                            .show_ui(ui, |ui| {
+                                                for scale in utils::SpectrogramScale::VALUES {
+                                                    ui.selectable_value(
+                                                        &mut self.scale,
+                                                        scale,
+                                                        scale.to_string(),
+                                                    );
+                                                }
+                                            });
+                                        if self.scale != old_scale {
+                                            trigger_regeneration = true;
+                                        }
+
+                                        ui.add_space(inner_gap);
+
                                         // Window function combobox
                                         let old_win_func = self.win_func;
                                         egui::ComboBox::from_label("F:")
                                             .selected_text(self.win_func.to_string())
+                                            .width(80.0)
+                                            .height(600.0)
                                             .show_ui(ui, |ui| {
                                                 for win_function in utils::SpectogramWinFunc::VALUES
                                                 {
@@ -159,6 +184,8 @@ impl eframe::App for MyApp {
                                         let old_color_scheme = self.color_scheme;
                                         egui::ComboBox::from_label("Colors:")
                                             .selected_text(self.color_scheme.to_string())
+                                            .width(80.0)
+                                            .height(600.0)
                                             .show_ui(ui, |ui| {
                                                 for color in utils::SpectrogramColorScheme::VALUES {
                                                     ui.selectable_value(
@@ -245,6 +272,7 @@ impl eframe::App for MyApp {
                                         let legend = self.legend;
                                         let color_scheme = self.color_scheme;
                                         let win_func = self.win_func;
+                                        let scale = self.scale;
                                         let gain = self.gain;
                                         let saturation = self.saturation;
                                         let split_channels = self.split_channels;
@@ -261,6 +289,7 @@ impl eframe::App for MyApp {
                                                 legend,
                                                 color_scheme,
                                                 win_func,
+                                                scale,
                                                 gain,
                                                 saturation,
                                                 split_channels,
