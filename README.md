@@ -5,5 +5,6 @@ The main difference from the original is that the legend around the spectrogram 
 
 ## TODO
 - [ ] Add keyboard shortcuts
+- [ ] Save settings to a configuration file
 - [ ] Draw text displaying the file path and spectrogram settings at the top of the image
 - [ ] Custom legend rendering
