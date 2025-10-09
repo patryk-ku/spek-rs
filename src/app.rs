@@ -92,6 +92,49 @@ impl eframe::App for MyApp {
                                     let mut trigger_regeneration = false;
 
                                     ui.add_enabled_ui(!self.is_generating, |ui| {
+                                        // More options menu
+                                        let response = ui.button("More...");
+                                        egui::Popup::menu(&response)
+                                            .gap(6.0)
+                                            .align(egui::RectAlign::BOTTOM_END)
+                                            .close_behavior(
+                                                egui::PopupCloseBehavior::CloseOnClickOutside,
+                                            )
+                                            .show(|ui| {
+                                                // Legend checkbox
+                                                let old_legend = self.legend;
+                                                ui.checkbox(&mut self.legend, "Legend");
+                                                if self.legend != old_legend {
+                                                    trigger_regeneration = true;
+                                                }
+
+                                                // Split channels checkbox
+                                                let old_split_channels = self.split_channels;
+                                                ui.checkbox(
+                                                    &mut self.split_channels,
+                                                    "Split Channels",
+                                                );
+                                                if self.split_channels != old_split_channels {
+                                                    trigger_regeneration = true;
+                                                }
+
+                                                if ui.button("Reset").clicked() {
+                                                    ui.close();
+                                                    self.legend = true;
+                                                    self.color_scheme =
+                                                        utils::SpectrogramColorScheme::Intensity;
+                                                    self.win_func = utils::SpectogramWinFunc::Hann;
+                                                    self.gain = 1.0;
+                                                    self.saturation = 1.0;
+                                                    self.split_channels = false;
+                                                    self.custom_resolution = false;
+                                                    self.resolution = [800, 500];
+                                                    trigger_regeneration = true;
+                                                }
+                                            });
+
+                                        ui.add_space(inner_gap);
+
                                         // Window function combobox
                                         let old_win_func = self.win_func;
                                         egui::ComboBox::from_label("F:")
@@ -160,15 +203,6 @@ impl eframe::App for MyApp {
 
                                         ui.add_space(inner_gap);
 
-                                        // Split channels checkbox
-                                        let old_split_channels = self.split_channels;
-                                        ui.checkbox(&mut self.split_channels, "Split Channels");
-                                        if self.split_channels != old_split_channels {
-                                            trigger_regeneration = true;
-                                        }
-
-                                        ui.add_space(inner_gap);
-
                                         // Custom resolution checkbox and drag inputs
                                         let old_custom_resolution = self.custom_resolution;
                                         ui.checkbox(&mut self.custom_resolution, "Custom Res");
@@ -199,15 +233,6 @@ impl eframe::App for MyApp {
                                                     trigger_regeneration = true;
                                                 }
                                             });
-                                        }
-
-                                        ui.add_space(inner_gap);
-
-                                        // Legend checkbox
-                                        let old_legend = self.legend;
-                                        ui.checkbox(&mut self.legend, "Legend");
-                                        if self.legend != old_legend {
-                                            trigger_regeneration = true;
                                         }
                                     });
 
