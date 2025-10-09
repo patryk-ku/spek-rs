@@ -30,6 +30,7 @@ fn main() -> eframe::Result {
         false,
         800,
         500,
+        false,
     );
 
     let options = eframe::NativeOptions {

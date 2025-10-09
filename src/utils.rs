@@ -205,9 +205,10 @@ pub fn generate_spectrogram_in_memory(
     split_channels: bool,
     width: u32,
     height: u32,
+    horizontal: bool,
 ) -> Option<ColorImage> {
     println!(
-        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, scale: {}, gain: {}, saturation: {}, split: {}, size: {}x{}",
+        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, scale: {}, gain: {}, saturation: {}, split: {}, size: {}x{}, horizontal: {}",
         input_path,
         legend,
         color_scheme.as_str(),
@@ -217,7 +218,8 @@ pub fn generate_spectrogram_in_memory(
         saturation,
         split_channels,
         width,
-        height
+        height,
+        horizontal
     );
 
     let mode = if split_channels {
@@ -232,8 +234,10 @@ pub fn generate_spectrogram_in_memory(
     //     safe_path_string
     // );
 
+    let orientation = if horizontal { "horizontal" } else { "vertical" };
+
     let lavfi_filter = format!(
-        "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:scale={}:gain={}:saturation={}:mode={}",
+        "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:scale={}:gain={}:saturation={}:mode={}:orientation={}",
         width,
         height,
         legend,
@@ -242,7 +246,8 @@ pub fn generate_spectrogram_in_memory(
         scale.as_str(),
         gain,
         saturation,
-        mode
+        mode,
+        orientation
     );
 
     let mut cmd = Command::new("ffmpeg")

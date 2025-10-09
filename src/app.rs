@@ -19,6 +19,7 @@ pub struct MyApp {
     image_receiver: Option<mpsc::Receiver<Option<ColorImage>>>,
     custom_resolution: bool,
     resolution: [u32; 2],
+    horizontal: bool,
 }
 
 impl MyApp {
@@ -38,6 +39,7 @@ impl MyApp {
             image_receiver: None,
             custom_resolution: false,
             resolution: [800, 500],
+            horizontal: false,
         }
     }
 }
@@ -103,37 +105,49 @@ impl eframe::App for MyApp {
                                                 egui::PopupCloseBehavior::CloseOnClickOutside,
                                             )
                                             .show(|ui| {
-                                                // Legend checkbox
-                                                let old_legend = self.legend;
-                                                ui.checkbox(&mut self.legend, "Legend");
-                                                if self.legend != old_legend {
-                                                    trigger_regeneration = true;
-                                                }
+                                                ui.add_enabled_ui(!self.is_generating, |ui| {
+                                                    // Legend checkbox
+                                                    let old_legend = self.legend;
+                                                    ui.checkbox(&mut self.legend, "Legend");
+                                                    if self.legend != old_legend {
+                                                        trigger_regeneration = true;
+                                                    }
 
-                                                // Split channels checkbox
-                                                let old_split_channels = self.split_channels;
-                                                ui.checkbox(
-                                                    &mut self.split_channels,
-                                                    "Split Channels",
-                                                );
-                                                if self.split_channels != old_split_channels {
-                                                    trigger_regeneration = true;
-                                                }
+                                                    // Split channels checkbox
+                                                    let old_split_channels = self.split_channels;
+                                                    ui.checkbox(
+                                                        &mut self.split_channels,
+                                                        "Split Channels",
+                                                    );
+                                                    if self.split_channels != old_split_channels {
+                                                        trigger_regeneration = true;
+                                                    }
 
-                                                if ui.button("Reset").clicked() {
-                                                    ui.close();
-                                                    self.legend = true;
-                                                    self.color_scheme =
+                                                    // Horizontal spectogram
+                                                    let old_horizontal = self.horizontal;
+                                                    ui.checkbox(&mut self.horizontal, "Horizontal");
+                                                    if self.horizontal != old_horizontal {
+                                                        trigger_regeneration = true;
+                                                    }
+
+                                                    // Reset settings button
+                                                    if ui.button("Reset").clicked() {
+                                                        ui.close();
+                                                        self.legend = true;
+                                                        self.color_scheme =
                                                         utils::SpectrogramColorScheme::Intensity;
-                                                    self.win_func = utils::SpectogramWinFunc::Hann;
-                                                    self.scale = utils::SpectrogramScale::Log;
-                                                    self.gain = 1.0;
-                                                    self.saturation = 1.0;
-                                                    self.split_channels = false;
-                                                    self.custom_resolution = false;
-                                                    self.resolution = [800, 500];
-                                                    trigger_regeneration = true;
-                                                }
+                                                        self.win_func =
+                                                            utils::SpectogramWinFunc::Hann;
+                                                        self.scale = utils::SpectrogramScale::Log;
+                                                        self.gain = 1.0;
+                                                        self.saturation = 1.0;
+                                                        self.split_channels = false;
+                                                        self.custom_resolution = false;
+                                                        self.resolution = [800, 500];
+                                                        self.horizontal = false;
+                                                        trigger_regeneration = true;
+                                                    }
+                                                });
                                             });
 
                                         ui.add_space(inner_gap);
@@ -281,6 +295,7 @@ impl eframe::App for MyApp {
                                         } else {
                                             (800, 500)
                                         };
+                                        let horizontal = self.horizontal;
                                         let ctx_clone = ctx.clone();
 
                                         thread::spawn(move || {
@@ -295,6 +310,7 @@ impl eframe::App for MyApp {
                                                 split_channels,
                                                 width,
                                                 height,
+                                                horizontal,
                                             );
                                             sender.send(image).ok();
                                             ctx_clone.request_repaint(); // Wake up UI thread
