@@ -87,13 +87,20 @@ impl eframe::App for MyApp {
                             ui.label(format!("v{}", env!("CARGO_PKG_VERSION")));
                             ui.add_space(inner_gap);
 
-                            if ui.button("Save As...").clicked() {
-                                utils::save_image(&self.image, &self.input_path);
-                            }
+                            ui.add_enabled_ui(!self.is_generating && self.image.is_some(), |ui| {
+                                if ui.button("Save As...").clicked() {
+                                    utils::save_image(&self.image, &self.input_path);
+                                }
+                            });
 
                             ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                                 ui.horizontal(|ui| {
                                     let mut trigger_regeneration = false;
+
+                                    // Start generating on first launch
+                                    if self.image.is_none() && !self.is_generating {
+                                        trigger_regeneration = true;
+                                    }
 
                                     ui.add_enabled_ui(!self.is_generating, |ui| {
                                         // More options menu

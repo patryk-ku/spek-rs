@@ -3,6 +3,7 @@ use image::GenericImageView;
 use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::time::Instant;
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum SpectrogramColorScheme {
@@ -207,9 +208,10 @@ pub fn generate_spectrogram_in_memory(
     height: u32,
     horizontal: bool,
 ) -> Option<ColorImage> {
+    let start = Instant::now();
+    println!("Generating spectrogram for: {}", input_path,);
     println!(
-        "Generating spectrogram for: \"{}\" settings = legend: {}, color: {}, win_func: {}, scale: {}, gain: {}, saturation: {}, split: {}, size: {}x{}, horizontal: {}",
-        input_path,
+        "Settings = legend: {}, color: {}, win_func: {}, scale: {}, gain: {}, saturation: {}, split: {}, size: {}x{}, horizontal: {}",
         legend,
         color_scheme.as_str(),
         win_func,
@@ -305,7 +307,10 @@ pub fn generate_spectrogram_in_memory(
     let color_image =
         ColorImage::from_rgba_unmultiplied([width as usize, height as usize], rgba_image.as_raw());
 
-    println!("Spectrogram generated successfully.");
+    println!(
+        "Spectrogram generated successfully in {:?}.",
+        start.elapsed()
+    );
     Some(color_image)
 }
 
