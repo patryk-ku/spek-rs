@@ -1,4 +1,4 @@
-use eframe::egui::{self, ColorImage};
+use eframe::egui::{self, Color32, ColorImage};
 use std::sync::mpsc;
 use std::thread;
 
@@ -17,9 +17,11 @@ pub struct MyApp {
     split_channels: bool,
     is_generating: bool,
     image_receiver: Option<mpsc::Receiver<Option<ColorImage>>>,
+    spectrogram_slice_position: usize,
     custom_resolution: bool,
     resolution: [u32; 2],
     horizontal: bool,
+    live_mode: bool,
 }
 
 impl MyApp {
@@ -37,35 +39,75 @@ impl MyApp {
             split_channels: false,
             is_generating: false,
             image_receiver: None,
+            spectrogram_slice_position: 0,
             custom_resolution: false,
             resolution: [800, 500],
             horizontal: false,
+            live_mode: false,
         }
     }
 }
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Check for a newly generated image from the background thread
-        if let Some(receiver) = &self.image_receiver {
-            if let Ok(maybe_image) = receiver.try_recv() {
-                self.is_generating = false;
-                self.image_receiver = None; // We're done with this receiver
-                if let Some(new_image) = maybe_image {
-                    self.texture = Some(ctx.load_texture(
-                        "spectrogram",
-                        new_image.clone(),
-                        Default::default(),
-                    ));
-                    self.image = Some(new_image);
+        if self.live_mode {
+            if self.is_generating {
+                if let Some(receiver) = &self.image_receiver {
+                    for slice in receiver.try_iter() {
+                        if let Some(slice) = slice {
+                            if let Some(image) = self.image.as_mut() {
+                                let slice_width = slice.width();
+                                let image_width = image.width();
+                                // println!(
+                                //     "spectrogram_slice_position: {}",
+                                //     self.spectrogram_slice_position
+                                // );
+                                if self.spectrogram_slice_position + slice_width <= image_width {
+                                    for y in 0..image.height() {
+                                        for x in 0..slice_width {
+                                            image[(self.spectrogram_slice_position + x, y)] =
+                                                slice[(x, y)];
+                                        }
+                                    }
+                                    if let Some(texture) = self.texture.as_mut() {
+                                        texture.set(image.clone(), Default::default());
+                                    }
+                                    self.spectrogram_slice_position += slice_width;
+                                }
+                            }
+                        }
+                    }
+
+                    // A bit of a hack to check if the channel is disconnected
+                    if let Err(mpsc::TryRecvError::Disconnected) = receiver.try_recv() {
+                        self.is_generating = false;
+                        self.image_receiver = None;
+                    }
+                }
+                ctx.request_repaint();
+            }
+        } else {
+            // Check for a newly generated image from the background thread
+            if let Some(receiver) = &self.image_receiver {
+                if let Ok(maybe_image) = receiver.try_recv() {
+                    self.is_generating = false;
+                    self.image_receiver = None; // done with this receiver
+                    if let Some(new_image) = maybe_image {
+                        self.texture = Some(ctx.load_texture(
+                            "spectrogram",
+                            new_image.clone(),
+                            Default::default(),
+                        ));
+                        self.image = Some(new_image);
+                    }
                 }
             }
-        }
 
-        if self.texture.is_none() && self.image.is_some() {
-            if let Some(image) = self.image.as_ref() {
-                self.texture =
-                    Some(ctx.load_texture("spectrogram", image.clone(), Default::default()));
+            if self.texture.is_none() && self.image.is_some() {
+                if let Some(image) = self.image.as_ref() {
+                    self.texture =
+                        Some(ctx.load_texture("spectrogram", image.clone(), Default::default()));
+                }
             }
         }
 
@@ -104,8 +146,8 @@ impl eframe::App for MyApp {
 
                                     ui.add_enabled_ui(!self.is_generating, |ui| {
                                         // More options menu
-                                        let response = ui.button("More...");
-                                        egui::Popup::menu(&response)
+                                        let more_button = ui.button("More...");
+                                        egui::Popup::menu(&more_button)
                                             .gap(6.0)
                                             .align(egui::RectAlign::BOTTOM_END)
                                             .close_behavior(
@@ -113,32 +155,78 @@ impl eframe::App for MyApp {
                                             )
                                             .show(|ui| {
                                                 ui.add_enabled_ui(!self.is_generating, |ui| {
+                                                    let mut useless_bool = false;
+
                                                     // Legend checkbox
-                                                    let old_legend = self.legend;
-                                                    ui.checkbox(&mut self.legend, "Legend");
-                                                    if self.legend != old_legend {
-                                                        trigger_regeneration = true;
+                                                    if !self.live_mode {
+                                                        let old_legend = self.legend;
+                                                        ui.checkbox(
+                                                            &mut self.legend,
+                                                            "Draw legend",
+                                                        );
+                                                        if self.legend != old_legend {
+                                                            trigger_regeneration = true;
+                                                        }
+                                                    } else {
+                                                        ui.add_enabled(
+                                                            false,
+                                                            egui::Checkbox::new(
+                                                                &mut useless_bool,
+                                                                "Draw legend",
+                                                            ),
+                                                        );
                                                     }
 
                                                     // Split channels checkbox
                                                     let old_split_channels = self.split_channels;
                                                     ui.checkbox(
                                                         &mut self.split_channels,
-                                                        "Split Channels",
+                                                        "Split channels",
                                                     );
                                                     if self.split_channels != old_split_channels {
                                                         trigger_regeneration = true;
                                                     }
 
                                                     // Horizontal spectogram
-                                                    let old_horizontal = self.horizontal;
-                                                    ui.checkbox(&mut self.horizontal, "Horizontal");
-                                                    if self.horizontal != old_horizontal {
+                                                    if !self.live_mode {
+                                                        let old_horizontal = self.horizontal;
+                                                        ui.checkbox(
+                                                            &mut self.horizontal,
+                                                            "Horizontal",
+                                                        );
+                                                        if self.horizontal != old_horizontal {
+                                                            trigger_regeneration = true;
+                                                        }
+                                                    } else {
+                                                        ui.add_enabled(
+                                                            false,
+                                                            egui::Checkbox::new(
+                                                                &mut useless_bool,
+                                                                "Horizontal",
+                                                            ),
+                                                        );
+                                                    }
+
+                                                    ui.add_enabled(
+                                                        false,
+                                                        egui::Checkbox::new(
+                                                            &mut useless_bool,
+                                                            "Resize with window",
+                                                        ),
+                                                    );
+
+                                                    // Live mode
+                                                    let old_live_mode = self.live_mode;
+                                                    ui.checkbox(
+                                                        &mut self.live_mode,
+                                                        "Live mode (WIP)",
+                                                    );
+                                                    if self.live_mode != old_live_mode {
                                                         trigger_regeneration = true;
                                                     }
 
                                                     // Reset settings button
-                                                    if ui.button("Reset").clicked() {
+                                                    if ui.button("Reset settings").clicked() {
                                                         ui.close();
                                                         self.legend = true;
                                                         self.color_scheme =
@@ -262,14 +350,16 @@ impl eframe::App for MyApp {
                                             ui.horizontal(|ui| {
                                                 let width_response = ui.add(
                                                     egui::DragValue::new(&mut self.resolution[0])
-                                                        // .prefix("Width: ")
+                                                        .prefix("w: ")
+                                                        .suffix("px")
                                                         .speed(10.0)
                                                         .range(100.0..=7892.0),
                                                 );
                                                 ui.label("x");
                                                 let height_response = ui.add(
                                                     egui::DragValue::new(&mut self.resolution[1])
-                                                        // .prefix("Height: ")
+                                                        .prefix("h: ")
+                                                        .suffix("px")
                                                         .speed(10.0)
                                                         .range(100.0..=7992.0),
                                                 );
@@ -285,55 +375,108 @@ impl eframe::App for MyApp {
                                     });
 
                                     if trigger_regeneration && !self.is_generating {
-                                        self.is_generating = true;
-                                        let (sender, receiver) = mpsc::channel();
-                                        self.image_receiver = Some(receiver);
+                                        if self.live_mode {
+                                            self.is_generating = true;
+                                            self.spectrogram_slice_position = 0;
+                                            let (sender, receiver) = mpsc::channel();
+                                            self.image_receiver = Some(receiver);
 
-                                        let input_path = self.input_path.clone();
-                                        let legend = self.legend;
-                                        let color_scheme = self.color_scheme;
-                                        let win_func = self.win_func;
-                                        let scale = self.scale;
-                                        let gain = self.gain;
-                                        let saturation = self.saturation;
-                                        let split_channels = self.split_channels;
-                                        let (width, height) = if self.custom_resolution {
-                                            (self.resolution[0], self.resolution[1])
-                                        } else {
-                                            (800, 500)
-                                        };
-                                        let horizontal = self.horizontal;
-                                        let ctx_clone = ctx.clone();
+                                            let (width, height) = if self.custom_resolution {
+                                                (self.resolution[0], self.resolution[1])
+                                            } else {
+                                                (800, 500)
+                                            };
 
-                                        thread::spawn(move || {
-                                            let image = utils::generate_spectrogram_in_memory(
-                                                &input_path,
-                                                legend,
-                                                color_scheme,
-                                                win_func,
-                                                scale,
-                                                gain,
-                                                saturation,
-                                                split_channels,
-                                                width,
-                                                height,
-                                                horizontal,
+                                            let new_image = ColorImage::new(
+                                                [width as usize, height as usize],
+                                                vec![Color32::BLACK; (width * height) as usize],
                                             );
-                                            sender.send(image).ok();
-                                            ctx_clone.request_repaint(); // Wake up UI thread
-                                        });
+                                            self.texture = Some(ctx.load_texture(
+                                                "spectrogram",
+                                                new_image.clone(),
+                                                Default::default(),
+                                            ));
+                                            self.image = Some(new_image);
+
+                                            let input_path = self.input_path.clone();
+                                            let legend = self.legend;
+                                            let color_scheme = self.color_scheme;
+                                            let win_func = self.win_func;
+                                            let scale = self.scale;
+                                            let gain = self.gain;
+                                            let saturation = self.saturation;
+                                            let split_channels = self.split_channels;
+                                            let horizontal = self.horizontal;
+
+                                            thread::spawn(move || {
+                                                utils::stream_spectrogram_frames(
+                                                    sender,
+                                                    &input_path,
+                                                    legend,
+                                                    color_scheme,
+                                                    win_func,
+                                                    scale,
+                                                    gain,
+                                                    saturation,
+                                                    split_channels,
+                                                    width,
+                                                    height,
+                                                    horizontal,
+                                                );
+                                            });
+                                        } else {
+                                            self.is_generating = true;
+                                            let (sender, receiver) = mpsc::channel();
+                                            self.image_receiver = Some(receiver);
+
+                                            let input_path = self.input_path.clone();
+                                            let legend = self.legend;
+                                            let color_scheme = self.color_scheme;
+                                            let win_func = self.win_func;
+                                            let scale = self.scale;
+                                            let gain = self.gain;
+                                            let saturation = self.saturation;
+                                            let split_channels = self.split_channels;
+                                            let (width, height) = if self.custom_resolution {
+                                                (self.resolution[0], self.resolution[1])
+                                            } else {
+                                                (800, 500)
+                                            };
+                                            let horizontal = self.horizontal;
+                                            let ctx_clone = ctx.clone();
+
+                                            thread::spawn(move || {
+                                                let image = utils::generate_spectrogram_in_memory(
+                                                    &input_path,
+                                                    legend,
+                                                    color_scheme,
+                                                    win_func,
+                                                    scale,
+                                                    gain,
+                                                    saturation,
+                                                    split_channels,
+                                                    width,
+                                                    height,
+                                                    horizontal,
+                                                );
+                                                sender.send(image).ok();
+                                                ctx_clone.request_repaint(); // Wake up UI thread
+                                            });
+                                        }
                                     }
                                 });
                             });
                         });
                     });
 
-                if self.is_generating {
+                if self.is_generating && !self.live_mode {
                     ui.centered_and_justified(|ui| {
                         ui.spinner();
-                        ui.label("Generating...");
+                        // ui.label("Generating...");
                     });
-                } else if let Some(texture) = &self.texture {
+                }
+
+                if let Some(texture) = &self.texture {
                     let available_size = ui.available_size();
                     let image_size = texture.size_vec2();
 
@@ -355,7 +498,7 @@ impl eframe::App for MyApp {
                             ui.add(egui::Image::from_texture(texture));
                         }
                     });
-                } else {
+                } else if !self.is_generating {
                     ui.centered_and_justified(|ui| {
                         ui.label("Failed to generate or load spectrogram.");
                     });

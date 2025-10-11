@@ -20,20 +20,6 @@ fn main() -> eframe::Result {
         }
     };
 
-    // let spectrogram_image = utils::generate_spectrogram_in_memory(
-    //     &input_path,
-    //     true,
-    //     utils::SpectrogramColorScheme::Intensity,
-    //     utils::SpectogramWinFunc::Hann,
-    //     utils::SpectrogramScale::Log,
-    //     1.0,
-    //     1.0,
-    //     false,
-    //     800,
-    //     500,
-    //     false,
-    // );
-
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             // .with_inner_size([800.0 + 282.0, 500.0 + 128.0 + 39.0])
