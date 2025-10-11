@@ -2,6 +2,7 @@
 
 use eframe::egui;
 use std::env;
+use std::process::{Command, Stdio};
 
 mod app;
 mod utils;
@@ -12,13 +13,29 @@ fn main() -> eframe::Result {
     println!("spek-rs v{}", env!("CARGO_PKG_VERSION"));
 
     let args: Vec<String> = env::args().collect();
-    let input_path = match args.get(1) {
-        Some(path) => path.clone(),
-        None => {
-            eprintln!("Usage: spek-rs <path_to_media_file>");
-            std::process::exit(1);
+
+    if args.len() <= 1 {
+        eprintln!("Usage: spek-rs <path_to_media_file>...");
+        std::process::exit(1);
+    }
+
+    // Handle multiple files
+    if args.len() > 2 {
+        let exe_path = env::current_exe().expect("Failed to get current executable path");
+        for path in args.iter().skip(2) {
+            if let Err(e) = Command::new(&exe_path)
+                .arg(path)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+            {
+                eprintln!("Failed to spawn process for {}: {}", path, e);
+            }
         }
-    };
+    }
+
+    let input_path = args[1].clone();
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
