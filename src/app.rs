@@ -22,6 +22,7 @@ pub struct MyApp {
     resolution: [u32; 2],
     horizontal: bool,
     live_mode: bool,
+    about_window_open: bool,
 }
 
 impl MyApp {
@@ -44,6 +45,7 @@ impl MyApp {
             resolution: [800, 500],
             horizontal: false,
             live_mode: false,
+            about_window_open: false,
         }
     }
 }
@@ -251,6 +253,13 @@ impl eframe::App for MyApp {
                                                         self.resolution = [800, 500];
                                                         self.horizontal = false;
                                                         trigger_regeneration = true;
+                                                    }
+
+                                                    ui.separator();
+
+                                                    if ui.button("About").clicked() {
+                                                        self.about_window_open = true;
+                                                        ui.close();
                                                     }
                                                 });
                                             });
@@ -504,5 +513,26 @@ impl eframe::App for MyApp {
                     });
                 }
             });
+
+        if self.about_window_open {
+            egui::Window::new("About Spek-rs")
+                .open(&mut self.about_window_open)
+                .pivot(egui::Align2::CENTER_CENTER)
+                .default_pos(ctx.screen_rect().center())
+                .resizable(false)
+                .collapsible(false)
+                .min_width(280.0)
+                .max_width(280.0)
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading(format!("Spek-rs v{}", env!("CARGO_PKG_VERSION")));
+                        ui.add_space(10.0);
+                        ui.label("Copyright © 2024 Patryk Kurdziel");
+                        ui.label("Released under the MIT License.");
+                        ui.add_space(10.0);
+                        ui.hyperlink("https://github.com/patryk-ku/spek-rs");
+                    });
+                });
+        }
     }
 }
