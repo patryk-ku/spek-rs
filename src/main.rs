@@ -13,11 +13,11 @@ fn main() -> eframe::Result {
     println!("spek-rs v{}", env!("CARGO_PKG_VERSION"));
 
     let args: Vec<String> = env::args().collect();
-
-    if args.len() <= 1 {
-        eprintln!("Usage: spek-rs <path_to_media_file>...");
-        std::process::exit(1);
-    }
+    let input_path = if args.len() > 1 {
+        Some(args[1].clone())
+    } else {
+        None
+    };
 
     // Handle multiple files
     if args.len() > 2 {
@@ -34,8 +34,6 @@ fn main() -> eframe::Result {
             }
         }
     }
-
-    let input_path = args[1].clone();
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

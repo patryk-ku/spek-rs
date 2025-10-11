@@ -7,7 +7,7 @@ use crate::utils;
 pub struct MyApp {
     texture: Option<egui::TextureHandle>,
     image: Option<ColorImage>,
-    input_path: String,
+    input_path: Option<String>,
     legend: bool,
     color_scheme: utils::SpectrogramColorScheme,
     win_func: utils::SpectogramWinFunc,
@@ -25,7 +25,7 @@ pub struct MyApp {
 }
 
 impl MyApp {
-    pub fn new(image: Option<ColorImage>, input_path: String) -> Self {
+    pub fn new(image: Option<ColorImage>, input_path: Option<String>) -> Self {
         Self {
             texture: None,
             image,
@@ -124,21 +124,31 @@ impl eframe::App for MyApp {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             let inner_gap = 4.0;
+                            let mut trigger_regeneration = false;
 
                             ui.strong("Spek-rs");
                             ui.label(format!("v{}", env!("CARGO_PKG_VERSION")));
                             ui.add_space(inner_gap);
 
-                            ui.add_enabled_ui(!self.is_generating && self.image.is_some(), |ui| {
-                                if ui.button("Save As...").clicked() {
-                                    utils::save_image(&self.image, &self.input_path);
+                            ui.add_enabled_ui(!self.is_generating, |ui| {
+                                if ui.button("Open File...").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                                        self.input_path = Some(path.display().to_string());
+                                        trigger_regeneration = true;
+                                    }
+                                }
+
+                                if self.image.is_some() {
+                                    if ui.button("Save As...").clicked() {
+                                        if let Some(input_path) = &self.input_path {
+                                            utils::save_image(&self.image, input_path);
+                                        }
+                                    }
                                 }
                             });
 
                             ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                                 ui.horizontal(|ui| {
-                                    let mut trigger_regeneration = false;
-
                                     // Start generating on first launch
                                     if self.image.is_none() && !self.is_generating {
                                         trigger_regeneration = true;
@@ -375,18 +385,33 @@ impl eframe::App for MyApp {
                                     });
 
                                     if trigger_regeneration && !self.is_generating {
+                                        if self.input_path.is_none() {
+                                            return;
+                                        }
+
+                                        self.is_generating = true;
+
+                                        let input_path = self.input_path.clone().unwrap();
+                                        let legend = self.legend;
+                                        let color_scheme = self.color_scheme;
+                                        let win_func = self.win_func;
+                                        let scale = self.scale;
+                                        let gain = self.gain;
+                                        let saturation = self.saturation;
+                                        let split_channels = self.split_channels;
+                                        let horizontal = self.horizontal;
+
+                                        let (sender, receiver) = mpsc::channel();
+                                        self.image_receiver = Some(receiver);
+
+                                        let (width, height) = if self.custom_resolution {
+                                            (self.resolution[0], self.resolution[1])
+                                        } else {
+                                            (800, 500)
+                                        };
+
                                         if self.live_mode {
-                                            self.is_generating = true;
                                             self.spectrogram_slice_position = 0;
-                                            let (sender, receiver) = mpsc::channel();
-                                            self.image_receiver = Some(receiver);
-
-                                            let (width, height) = if self.custom_resolution {
-                                                (self.resolution[0], self.resolution[1])
-                                            } else {
-                                                (800, 500)
-                                            };
-
                                             let new_image = ColorImage::new(
                                                 [width as usize, height as usize],
                                                 vec![Color32::BLACK; (width * height) as usize],
@@ -397,16 +422,6 @@ impl eframe::App for MyApp {
                                                 Default::default(),
                                             ));
                                             self.image = Some(new_image);
-
-                                            let input_path = self.input_path.clone();
-                                            let legend = self.legend;
-                                            let color_scheme = self.color_scheme;
-                                            let win_func = self.win_func;
-                                            let scale = self.scale;
-                                            let gain = self.gain;
-                                            let saturation = self.saturation;
-                                            let split_channels = self.split_channels;
-                                            let horizontal = self.horizontal;
 
                                             thread::spawn(move || {
                                                 utils::stream_spectrogram_frames(
@@ -425,26 +440,7 @@ impl eframe::App for MyApp {
                                                 );
                                             });
                                         } else {
-                                            self.is_generating = true;
-                                            let (sender, receiver) = mpsc::channel();
-                                            self.image_receiver = Some(receiver);
-
-                                            let input_path = self.input_path.clone();
-                                            let legend = self.legend;
-                                            let color_scheme = self.color_scheme;
-                                            let win_func = self.win_func;
-                                            let scale = self.scale;
-                                            let gain = self.gain;
-                                            let saturation = self.saturation;
-                                            let split_channels = self.split_channels;
-                                            let (width, height) = if self.custom_resolution {
-                                                (self.resolution[0], self.resolution[1])
-                                            } else {
-                                                (800, 500)
-                                            };
-                                            let horizontal = self.horizontal;
                                             let ctx_clone = ctx.clone();
-
                                             thread::spawn(move || {
                                                 let image = utils::generate_spectrogram_in_memory(
                                                     &input_path,
@@ -500,7 +496,11 @@ impl eframe::App for MyApp {
                     });
                 } else if !self.is_generating {
                     ui.centered_and_justified(|ui| {
-                        ui.label("Failed to generate or load spectrogram.");
+                        if self.input_path.is_some() {
+                            ui.label("Failed to generate or load spectrogram.");
+                        } else {
+                            ui.label("Open a file to begin.");
+                        }
                     });
                 }
             });
