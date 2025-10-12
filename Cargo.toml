@@ -14,6 +14,8 @@ env_logger = { version = "0.11.8", features = ["auto-color", "humantime"] }
 image = { version = "0.25.8", features = ["png"] }
 rfd = "0.14.1"
 dirs = "5.0.1"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
 
 [profile.release]
 strip = true

@@ -1,3 +1,4 @@
+use crate::settings::AppSettings;
 use eframe::egui::ColorImage;
 use image::GenericImageView;
 
@@ -6,195 +7,6 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::time::Instant;
-
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
-pub enum SpectrogramColorScheme {
-    Intensity,
-    Channel,
-    Rainbow,
-    Moreland,
-    Nebulae,
-    Fire,
-    Fiery,
-    Fruit,
-    Cool,
-    Magma,
-    Green,
-    Viridis,
-    Plasma,
-    Cividis,
-    Terrain,
-}
-
-impl SpectrogramColorScheme {
-    fn as_str(&self) -> &'static str {
-        match self {
-            SpectrogramColorScheme::Intensity => "intensity",
-            SpectrogramColorScheme::Channel => "channel",
-            SpectrogramColorScheme::Rainbow => "rainbow",
-            SpectrogramColorScheme::Moreland => "moreland",
-            SpectrogramColorScheme::Nebulae => "nebulae",
-            SpectrogramColorScheme::Fire => "fire",
-            SpectrogramColorScheme::Fiery => "fiery",
-            SpectrogramColorScheme::Fruit => "fruit",
-            SpectrogramColorScheme::Cool => "cool",
-            SpectrogramColorScheme::Magma => "magma",
-            SpectrogramColorScheme::Green => "green",
-            SpectrogramColorScheme::Viridis => "viridis",
-            SpectrogramColorScheme::Plasma => "plasma",
-            SpectrogramColorScheme::Cividis => "cividis",
-            SpectrogramColorScheme::Terrain => "terrain",
-        }
-    }
-
-    pub const VALUES: [Self; 15] = [
-        Self::Intensity,
-        Self::Channel,
-        Self::Rainbow,
-        Self::Moreland,
-        Self::Nebulae,
-        Self::Fire,
-        Self::Fiery,
-        Self::Fruit,
-        Self::Cool,
-        Self::Magma,
-        Self::Green,
-        Self::Viridis,
-        Self::Plasma,
-        Self::Cividis,
-        Self::Terrain,
-    ];
-}
-
-impl std::fmt::Display for SpectrogramColorScheme {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
-pub enum SpectogramWinFunc {
-    Rect,
-    Bartlett,
-    Hann,
-    Hanning,
-    Hamming,
-    Blackman,
-    Welch,
-    Flattop,
-    Bharris,
-    Bnuttall,
-    Bhann,
-    Sine,
-    Nuttall,
-    Lanczos,
-    Gauss,
-    Tukey,
-    Dolph,
-    Cauchy,
-    Parzen,
-    Poisson,
-    Bohman,
-    Kaiser,
-}
-
-impl SpectogramWinFunc {
-    fn as_str(&self) -> &'static str {
-        match self {
-            SpectogramWinFunc::Rect => "rect",
-            SpectogramWinFunc::Bartlett => "bartlett",
-            SpectogramWinFunc::Hann => "hann",
-            SpectogramWinFunc::Hanning => "hanning",
-            SpectogramWinFunc::Hamming => "hamming",
-            SpectogramWinFunc::Blackman => "blackman",
-            SpectogramWinFunc::Welch => "welch",
-            SpectogramWinFunc::Flattop => "flattop",
-            SpectogramWinFunc::Bharris => "bharris",
-            SpectogramWinFunc::Bnuttall => "bnuttall",
-            SpectogramWinFunc::Bhann => "bhann",
-            SpectogramWinFunc::Sine => "sine",
-            SpectogramWinFunc::Nuttall => "nuttall",
-            SpectogramWinFunc::Lanczos => "lanczos",
-            SpectogramWinFunc::Gauss => "gauss",
-            SpectogramWinFunc::Tukey => "tukey",
-            SpectogramWinFunc::Dolph => "dolph",
-            SpectogramWinFunc::Cauchy => "cauchy",
-            SpectogramWinFunc::Parzen => "parzen",
-            SpectogramWinFunc::Poisson => "poisson",
-            SpectogramWinFunc::Bohman => "bohman",
-            SpectogramWinFunc::Kaiser => "kaiser",
-        }
-    }
-
-    pub const VALUES: [Self; 22] = [
-        Self::Rect,
-        Self::Bartlett,
-        Self::Hann,
-        Self::Hanning,
-        Self::Hamming,
-        Self::Blackman,
-        Self::Welch,
-        Self::Flattop,
-        Self::Bharris,
-        Self::Bnuttall,
-        Self::Bhann,
-        Self::Sine,
-        Self::Nuttall,
-        Self::Lanczos,
-        Self::Gauss,
-        Self::Tukey,
-        Self::Dolph,
-        Self::Cauchy,
-        Self::Parzen,
-        Self::Poisson,
-        Self::Bohman,
-        Self::Kaiser,
-    ];
-}
-
-impl std::fmt::Display for SpectogramWinFunc {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
-pub enum SpectrogramScale {
-    Lin,
-    Sqrt,
-    Cbrt,
-    Log,
-    FourthRt,
-    FifthRt,
-}
-
-impl SpectrogramScale {
-    fn as_str(&self) -> &'static str {
-        match self {
-            SpectrogramScale::Lin => "lin",
-            SpectrogramScale::Sqrt => "sqrt",
-            SpectrogramScale::Cbrt => "cbrt",
-            SpectrogramScale::Log => "log",
-            SpectrogramScale::FourthRt => "4thrt",
-            SpectrogramScale::FifthRt => "5thrt",
-        }
-    }
-
-    pub const VALUES: [Self; 6] = [
-        Self::Lin,
-        Self::Sqrt,
-        Self::Cbrt,
-        Self::Log,
-        Self::FourthRt,
-        Self::FifthRt,
-    ];
-}
-
-impl std::fmt::Display for SpectrogramScale {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
 
 fn get_audio_duration(input_path: &str) -> Option<f64> {
     let output = Command::new("ffprobe")
@@ -222,34 +34,15 @@ fn get_audio_duration(input_path: &str) -> Option<f64> {
 /// Generates a spectrogram by calling ffmpeg and captures the output image from stdout.
 pub fn generate_spectrogram_in_memory(
     input_path: &str,
-    legend: bool,
-    color_scheme: SpectrogramColorScheme,
-    win_func: SpectogramWinFunc,
-    scale: SpectrogramScale,
-    gain: f32,
-    saturation: f32,
-    split_channels: bool,
+    settings: &AppSettings,
     width: u32,
     height: u32,
-    horizontal: bool,
 ) -> Option<ColorImage> {
     let start = Instant::now();
     println!("Generating spectrogram for: {}", input_path,);
-    println!(
-        "Settings = legend: {}, color: {}, win_func: {}, scale: {}, gain: {}, saturation: {}, split: {}, size: {}x{}, horizontal: {}",
-        legend,
-        color_scheme.as_str(),
-        win_func,
-        scale,
-        gain,
-        saturation,
-        split_channels,
-        width,
-        height,
-        horizontal
-    );
+    println!("{:#?}", settings);
 
-    let mode = if split_channels {
+    let mode = if settings.split_channels {
         "separate"
     } else {
         "combined"
@@ -261,18 +54,22 @@ pub fn generate_spectrogram_in_memory(
     //     safe_path_string
     // );
 
-    let orientation = if horizontal { "horizontal" } else { "vertical" };
+    let orientation = if settings.horizontal {
+        "horizontal"
+    } else {
+        "vertical"
+    };
 
     let lavfi_filter = format!(
         "showspectrumpic=s={}x{}:legend={}:color={}:win_func={}:scale={}:gain={}:saturation={}:mode={}:orientation={}",
         width,
         height,
-        legend,
-        color_scheme.as_str(),
-        win_func.as_str(),
-        scale.as_str(),
-        gain,
-        saturation,
+        settings.legend,
+        settings.color_scheme.as_str(),
+        settings.win_func.as_str(),
+        settings.scale.as_str(),
+        settings.gain,
+        settings.saturation,
         mode,
         orientation
     );
@@ -332,42 +129,20 @@ pub fn generate_spectrogram_in_memory(
     let color_image =
         ColorImage::from_rgba_unmultiplied([width as usize, height as usize], rgba_image.as_raw());
 
-    println!(
-        "Spectrogram generated successfully in {:?}.",
-        start.elapsed()
-    );
+    println!("Spectrogram generated in {:?}.", start.elapsed());
     Some(color_image)
 }
 
 pub fn stream_spectrogram_frames(
     sender: Sender<Option<ColorImage>>,
     input_path: &str,
-    legend: bool,
-    color_scheme: SpectrogramColorScheme,
-    win_func: SpectogramWinFunc,
-    scale: SpectrogramScale,
-    gain: f32,
-    saturation: f32,
-    split_channels: bool,
+    settings: &AppSettings,
     width: u32,
     height: u32,
-    horizontal: bool,
 ) {
     let start = Instant::now();
     println!("Generating spectrogram for: {}", input_path,);
-    println!(
-        "Settings = legend: {}, color: {}, win_func: {}, scale: {}, gain: {}, saturation: {}, split: {}, size: {}x{}, horizontal: {}",
-        legend,
-        color_scheme.as_str(),
-        win_func,
-        scale,
-        gain,
-        saturation,
-        split_channels,
-        width,
-        height,
-        horizontal
-    );
+    println!("{:#?}", settings);
 
     let duration = match get_audio_duration(input_path) {
         Some(d) if d > 0.0 => d,
@@ -378,23 +153,27 @@ pub fn stream_spectrogram_frames(
     };
 
     let fps = width as f64 / duration;
-    let mode = if split_channels {
+    let mode = if settings.split_channels {
         "separate"
     } else {
         "combined"
     };
-    let orientation = if horizontal { "horizontal" } else { "vertical" };
+    let orientation = if settings.horizontal {
+        "horizontal"
+    } else {
+        "vertical"
+    };
     let temp_width = 10;
 
     let lavfi_filter = format!(
         "showspectrum=s={}x{}:legend=0:color={}:win_func={}:scale={}:gain={}:saturation={}:mode={}:orientation={}:slide=scroll",
         temp_width,
         height,
-        color_scheme.as_str(),
-        win_func.as_str(),
-        scale.as_str(),
-        gain,
-        saturation,
+        settings.color_scheme.as_str(),
+        settings.win_func.as_str(),
+        settings.scale.as_str(),
+        settings.gain,
+        settings.saturation,
         mode,
         orientation
     );
@@ -480,7 +259,7 @@ pub fn stream_spectrogram_frames(
         }
     }
 
-    println!("Spectrogram generation finished in {:?}.", start.elapsed());
+    println!("Spectrogram generated in {:?}.", start.elapsed());
 }
 
 pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
