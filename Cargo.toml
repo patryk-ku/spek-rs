@@ -8,14 +8,14 @@ repository = "https://github.com/patryk-ku/spek-rs"
 license = "MIT"
 
 [dependencies]
-eframe = { version = "0.32.3", features = ["default", "wgpu"]}
-egui_extras = { version = "0.32.3", features = ["default", "image"] }
+eframe = { version = "0.33.0", features = ["default", "wgpu"]}
+egui_extras = { version = "0.33.0", features = ["default", "image"] }
 env_logger = { version = "0.11.8", features = ["auto-color", "humantime"] }
 image = { version = "0.25.8", features = ["png"] }
-rfd = "0.14.1"
-dirs = "5.0.1"
+rfd = "0.15.4"
+dirs = "6.0.0"
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+toml = "0.9"
 
 [profile.release]
 strip = true

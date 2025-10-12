@@ -483,7 +483,7 @@ impl eframe::App for MyApp {
             egui::Window::new("About Spek-rs")
                 .open(&mut self.about_window_open)
                 .pivot(egui::Align2::CENTER_CENTER)
-                .default_pos(ctx.screen_rect().center())
+                .default_pos(ctx.content_rect().center())
                 .resizable(false)
                 .collapsible(false)
                 .min_width(280.0)
