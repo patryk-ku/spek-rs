@@ -1,12 +1,18 @@
 use crate::settings::AppSettings;
 use eframe::egui::ColorImage;
-use image::GenericImageView;
-
+use image::{GenericImageView, RgbaImage};
 use std::io::{ErrorKind, Read};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::time::Instant;
+
+/// Converts an `image::RgbaImage` to an `eframe::egui::ColorImage`.
+pub fn rgba_image_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
+    let size = [rgba_image.width() as usize, rgba_image.height() as usize];
+    let pixels = rgba_image.as_raw();
+    ColorImage::from_rgba_unmultiplied(size, pixels)
+}
 
 fn get_audio_duration(input_path: &str) -> Option<f64> {
     let output = Command::new("ffprobe")
@@ -48,12 +54,6 @@ pub fn generate_spectrogram_in_memory(
         "combined"
     };
 
-    // let safe_path_string = shell_single_quote(input_path);
-    // let text = format!(
-    //     "drawtext=text='{}':x=10:y=10:fontsize=12:fontcolor=white",
-    //     safe_path_string
-    // );
-
     let orientation = if settings.horizontal {
         "horizontal"
     } else {
@@ -86,9 +86,6 @@ pub fn generate_spectrogram_in_memory(
             "-f",
             "image2pipe",
             "-",
-            // "-vcodec",
-            // "png",
-            // "pipe:1",
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -289,7 +286,3 @@ pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
         }
     }
 }
-
-// fn shell_single_quote(s: &str) -> String {
-//     format!("'{}'", s.replace('\'', "'\\''"))
-// }

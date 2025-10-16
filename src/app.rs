@@ -2,12 +2,14 @@ use eframe::egui::{self, Color32, ColorImage};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
+use crate::legend;
 use crate::settings::{AppSettings, SpectogramWinFunc, SpectrogramColorScheme, SpectrogramScale};
 use crate::utils;
+use crate::utils::rgba_image_to_color_image;
 
 pub struct MyApp {
     texture: Option<egui::TextureHandle>,
-    image: Option<eframe::egui::ColorImage>,
+    final_image: Option<eframe::egui::ColorImage>,
     input_path: Option<String>,
     settings: AppSettings,
     is_generating: bool,
@@ -20,7 +22,7 @@ impl MyApp {
     pub fn new(image: Option<ColorImage>, input_path: Option<String>) -> Self {
         Self {
             texture: None,
-            image,
+            final_image: image,
             input_path,
             settings: AppSettings::load(),
             is_generating: false,
@@ -41,7 +43,6 @@ impl MyApp {
 
         self.is_generating = true;
         let input_path = self.input_path.clone().unwrap();
-        let settings = self.settings.clone();
 
         let (sender, receiver) = mpsc::channel();
         self.image_receiver = Some(receiver);
@@ -52,50 +53,103 @@ impl MyApp {
             (800, 500)
         };
 
-        if self.settings.live_mode {
+        let use_custom_legend =
+            self.settings.legend && (self.settings.custom_legend || self.settings.live_mode);
+        let mut thread_settings = self.settings.clone();
+
+        if use_custom_legend {
             self.spectrogram_slice_position = 0;
-            let new_image = ColorImage::new(
+            let filename = std::path::Path::new(&input_path)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Unknown File");
+            let ffmpeg_settings = "ffmpeg settings placeholder"; // TODO
+
+            let legend_rgba = legend::draw_legend(width, height, filename, ffmpeg_settings);
+            let legend_color_image = rgba_image_to_color_image(&legend_rgba);
+
+            self.final_image = Some(legend_color_image.clone());
+            self.texture =
+                Some(ctx.load_texture("spectrogram", legend_color_image, Default::default()));
+
+            // Force ffmpeg legend off when using custom one
+            thread_settings.legend = false;
+        } else if self.settings.live_mode {
+            // In live mode, even without a legend, we need a canvas to draw on.
+            self.spectrogram_slice_position = 0;
+            let empty_canvas = ColorImage::new(
                 [width as usize, height as usize],
                 vec![Color32::BLACK; (width * height) as usize],
             );
-            self.texture =
-                Some(ctx.load_texture("spectrogram", new_image.clone(), Default::default()));
-            self.image = Some(new_image);
-
-            thread::spawn(move || {
-                utils::stream_spectrogram_frames(sender, &input_path, &settings, width, height);
-            });
+            self.final_image = Some(empty_canvas.clone());
+            self.texture = Some(ctx.load_texture("spectrogram", empty_canvas, Default::default()));
+            thread_settings.legend = false;
         } else {
-            let ctx_clone = ctx.clone();
-            thread::spawn(move || {
-                let image =
-                    utils::generate_spectrogram_in_memory(&input_path, &settings, width, height);
-                sender.send(image).ok();
-                ctx_clone.request_repaint(); // Wake up UI thread
-            });
+            self.final_image = None;
+            self.texture = None;
         }
+
+        let ctx_clone = ctx.clone();
+        thread::spawn(move || {
+            if thread_settings.live_mode {
+                utils::stream_spectrogram_frames(
+                    sender,
+                    &input_path,
+                    &thread_settings,
+                    width,
+                    height,
+                );
+            } else {
+                let image = utils::generate_spectrogram_in_memory(
+                    &input_path,
+                    &thread_settings,
+                    width,
+                    height,
+                );
+                if let Some(img) = image {
+                    sender.send(Some(img)).ok();
+                }
+            }
+            ctx_clone.request_repaint();
+        });
     }
 }
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.settings.live_mode {
-            if self.is_generating {
-                if let Some(receiver) = &self.image_receiver {
+        let use_custom_legend =
+            self.settings.legend && (self.settings.custom_legend || self.settings.live_mode);
+
+        if self.is_generating {
+            if let Some(receiver) = &self.image_receiver {
+                if self.settings.live_mode {
+                    // Live mode (always custom legend): receive slices and draw them
                     for slice in receiver.try_iter() {
                         if let Some(slice) = slice {
-                            if let Some(image) = self.image.as_mut() {
+                            if let Some(image) = self.final_image.as_mut() {
                                 let slice_width = slice.width();
-                                let image_width = image.width();
-                                // println!(
-                                //     "spectrogram_slice_position: {}",
-                                //     self.spectrogram_slice_position
-                                // );
-                                if self.spectrogram_slice_position + slice_width <= image_width {
-                                    for y in 0..image.height() {
+
+                                let (spec_width, x_offset, y_offset) = if use_custom_legend {
+                                    (
+                                        image.width()
+                                            - (legend::LEFT_MARGIN as usize
+                                                + legend::RIGHT_MARGIN as usize),
+                                        legend::LEFT_MARGIN as usize,
+                                        legend::TOP_MARGIN as usize,
+                                    )
+                                } else {
+                                    (image.width(), 0, 0)
+                                };
+
+                                if self.spectrogram_slice_position + slice_width <= spec_width {
+                                    for y in 0..slice.height() {
                                         for x in 0..slice_width {
-                                            image[(self.spectrogram_slice_position + x, y)] =
-                                                slice[(x, y)];
+                                            let dest_x =
+                                                self.spectrogram_slice_position + x + x_offset;
+                                            let dest_y = y + y_offset;
+                                            if dest_x < image.width() && dest_y < image.height() {
+                                                image[(dest_x, dest_y)] = slice[(x, y)];
+                                            }
                                         }
                                     }
                                     if let Some(texture) = self.texture.as_mut() {
@@ -112,31 +166,53 @@ impl eframe::App for MyApp {
                         self.is_generating = false;
                         self.image_receiver = None;
                     }
+                } else {
+                    // Normal mode: receive the full spectrogram
+                    if let Ok(maybe_image) = receiver.try_recv() {
+                        self.is_generating = false;
+                        self.image_receiver = None;
+                        if let Some(new_spectrogram) = maybe_image {
+                            if use_custom_legend {
+                                // Composite onto custom legend
+                                if let Some(final_image) = self.final_image.as_mut() {
+                                    for y in 0..new_spectrogram.height() {
+                                        for x in 0..new_spectrogram.width() {
+                                            let dest_x = x + legend::LEFT_MARGIN as usize;
+                                            let dest_y = y + legend::TOP_MARGIN as usize;
+                                            if dest_x < final_image.width()
+                                                && dest_y < final_image.height()
+                                            {
+                                                final_image[(dest_x, dest_y)] =
+                                                    new_spectrogram[(x, y)];
+                                            }
+                                        }
+                                    }
+                                    self.texture = Some(ctx.load_texture(
+                                        "spectrogram",
+                                        final_image.clone(),
+                                        Default::default(),
+                                    ));
+                                }
+                            } else {
+                                // Display ffmpeg-generated image directly
+                                self.texture = Some(ctx.load_texture(
+                                    "spectrogram",
+                                    new_spectrogram.clone(),
+                                    Default::default(),
+                                ));
+                                self.final_image = Some(new_spectrogram);
+                            }
+                        }
+                    }
                 }
                 ctx.request_repaint();
             }
-        } else {
-            // Check for a newly generated image from the background thread
-            if let Some(receiver) = &self.image_receiver {
-                if let Ok(maybe_image) = receiver.try_recv() {
-                    self.is_generating = false;
-                    self.image_receiver = None; // done with this receiver
-                    if let Some(new_image) = maybe_image {
-                        self.texture = Some(ctx.load_texture(
-                            "spectrogram",
-                            new_image.clone(),
-                            Default::default(),
-                        ));
-                        self.image = Some(new_image);
-                    }
-                }
-            }
+        }
 
-            if self.texture.is_none() && self.image.is_some() {
-                if let Some(image) = self.image.as_ref() {
-                    self.texture =
-                        Some(ctx.load_texture("spectrogram", image.clone(), Default::default()));
-                }
+        if self.texture.is_none() && self.final_image.is_some() {
+            if let Some(image) = self.final_image.as_ref() {
+                self.texture =
+                    Some(ctx.load_texture("spectrogram", image.clone(), Default::default()));
             }
         }
 
@@ -167,10 +243,10 @@ impl eframe::App for MyApp {
                                     }
                                 }
 
-                                if self.image.is_some() {
+                                if self.final_image.is_some() {
                                     if ui.button("Save As...").clicked() {
                                         if let Some(input_path) = &self.input_path {
-                                            utils::save_image(&self.image, input_path);
+                                            utils::save_image(&self.final_image, input_path);
                                         }
                                     }
                                 }
@@ -179,8 +255,10 @@ impl eframe::App for MyApp {
                             ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                                 ui.horizontal(|ui| {
                                     // Start generating on first launch
-                                    if self.image.is_none() && !self.is_generating {
-                                        trigger_regeneration = true;
+                                    if self.final_image.is_none() && !self.is_generating {
+                                        if self.input_path.is_some() {
+                                            trigger_regeneration = true;
+                                        }
                                     }
 
                                     ui.add_enabled_ui(!self.is_generating, |ui| {
@@ -194,27 +272,57 @@ impl eframe::App for MyApp {
                                             )
                                             .show(|ui| {
                                                 ui.add_enabled_ui(!self.is_generating, |ui| {
-                                                    let mut useless_bool = false;
+                                                    let mut dummy_true = true;
+                                                    let mut dummy_false = false;
 
-                                                    // Legend checkbox
-                                                    if !self.settings.live_mode {
-                                                        if ui
-                                                            .checkbox(
-                                                                &mut self.settings.legend,
-                                                                "Draw legend",
-                                                            )
-                                                            .changed()
-                                                        {
-                                                            trigger_regeneration = true;
+                                                    // Legend section
+                                                    if ui
+                                                        .checkbox(
+                                                            &mut self.settings.legend,
+                                                            "Draw legend",
+                                                        )
+                                                        .changed()
+                                                    {
+                                                        trigger_regeneration = true;
+                                                    }
+
+                                                    if self.settings.legend {
+                                                        if self.settings.live_mode {
+                                                            ui.add_enabled(
+                                                                false,
+                                                                egui::Checkbox::new(
+                                                                    &mut dummy_true,
+                                                                    "Custom Legend",
+                                                                ),
+                                                            );
+                                                        } else {
+                                                            if ui
+                                                                .checkbox(
+                                                                    &mut self
+                                                                        .settings
+                                                                        .custom_legend,
+                                                                    "Custom Legend",
+                                                                )
+                                                                .changed()
+                                                            {
+                                                                trigger_regeneration = true;
+                                                            }
                                                         }
-                                                    } else {
-                                                        ui.add_enabled(
-                                                            false,
-                                                            egui::Checkbox::new(
-                                                                &mut useless_bool,
-                                                                "Draw legend",
-                                                            ),
-                                                        );
+
+                                                        if self.settings.custom_legend
+                                                            || (self.settings.legend
+                                                                && self.settings.live_mode)
+                                                        {
+                                                            if ui
+                                                                .button("Legend settings")
+                                                                .clicked()
+                                                            {
+                                                                // self.legend_window_open = true;
+                                                                ui.close();
+                                                            }
+                                                        }
+
+                                                        ui.separator();
                                                     }
 
                                                     // Split channels checkbox
@@ -243,7 +351,7 @@ impl eframe::App for MyApp {
                                                         ui.add_enabled(
                                                             false,
                                                             egui::Checkbox::new(
-                                                                &mut useless_bool,
+                                                                &mut dummy_false,
                                                                 "Horizontal",
                                                             ),
                                                         );
@@ -252,7 +360,7 @@ impl eframe::App for MyApp {
                                                     ui.add_enabled(
                                                         false,
                                                         egui::Checkbox::new(
-                                                            &mut useless_bool,
+                                                            &mut dummy_false,
                                                             "Resize with window",
                                                         ),
                                                     );
@@ -267,6 +375,8 @@ impl eframe::App for MyApp {
                                                     {
                                                         trigger_regeneration = true;
                                                     }
+
+                                                    ui.separator();
 
                                                     if ui
                                                         .checkbox(
@@ -286,6 +396,16 @@ impl eframe::App for MyApp {
                                                     }
 
                                                     ui.separator();
+
+                                                    if ui.button("Keybindings").clicked() {
+                                                        // self.keybindings_window_open = true;
+                                                        ui.close();
+                                                    }
+
+                                                    if ui.button("Help").clicked() {
+                                                        // self.help_window_open = true;
+                                                        ui.close();
+                                                    }
 
                                                     if ui.button("About").clicked() {
                                                         self.about_window_open = true;

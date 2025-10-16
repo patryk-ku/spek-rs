@@ -203,6 +203,7 @@ pub struct AppSettings {
     pub legend: bool,
     pub live_mode: bool,
     pub remember_settings: bool,
+    pub custom_legend: bool,
 }
 
 impl Default for AppSettings {
@@ -220,6 +221,7 @@ impl Default for AppSettings {
             legend: true,
             live_mode: false,
             remember_settings: false,
+            custom_legend: true,
         }
     }
 }

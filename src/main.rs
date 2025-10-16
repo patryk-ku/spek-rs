@@ -5,6 +5,7 @@ use std::env;
 use std::process::{Command, Stdio};
 
 mod app;
+mod legend;
 mod settings;
 mod utils;
 use app::MyApp;
