@@ -1,6 +1,8 @@
+use crate::utils::AudioInfo;
 use ab_glyph::{FontVec, PxScale};
 use image::{Rgba, RgbaImage};
 use imageproc::drawing::{draw_filled_rect_mut, draw_line_segment_mut, draw_text_mut};
+use imageproc::rect::Rect;
 
 pub const TOP_MARGIN: u32 = 64;
 pub const BOTTOM_MARGIN: u32 = 64;
@@ -72,6 +74,130 @@ pub fn draw_gradient_line_mut(
     }
 }
 
+fn draw_time_scale(
+    image: &mut RgbaImage,
+    spec_width: u32,
+    spec_height: u32,
+    duration: f64,
+    font: &FontVec,
+    scale: PxScale,
+    color: Rgba<u8>,
+    is_top: bool,
+    draw_labels: bool,
+) {
+    let num_ticks = 10;
+    for i in 0..=num_ticks {
+        let fraction = i as f32 / num_ticks as f32;
+        let x = LEFT_MARGIN as f32 + fraction * spec_width as f32;
+
+        let (y_start, y_end, label_y) = if is_top {
+            let y_start = TOP_MARGIN as f32 - 6.0;
+            let y_end = TOP_MARGIN as f32 - 1.0;
+            let (_, text_height) = imageproc::drawing::text_size(scale, font, "0");
+            (y_start, y_end, y_start - text_height as f32 - 4.0)
+        } else {
+            let y_start = TOP_MARGIN as f32 + spec_height as f32;
+            let y_end = y_start + 5.0;
+            (y_start, y_end, y_end + 8.0)
+        };
+
+        draw_line_segment_mut(image, (x, y_start), (x, y_end), color);
+
+        if draw_labels {
+            let time_sec = duration * fraction as f64;
+            let minutes = (time_sec / 60.0).floor() as u32;
+            let seconds = (time_sec % 60.0).floor() as u32;
+            let label = format!("{}:{:02}", minutes, seconds);
+            let (text_width, _) = imageproc::drawing::text_size(scale, font, &label);
+            draw_text_mut(
+                image,
+                color,
+                (x - text_width as f32 / 2.0) as i32,
+                label_y as i32,
+                scale,
+                font,
+                &label,
+            );
+        }
+    }
+}
+
+fn draw_freq_scale(
+    image: &mut RgbaImage,
+    spec_width: u32,
+    spec_height: u32,
+    sample_rate: u32,
+    font: &FontVec,
+    scale: PxScale,
+    color: Rgba<u8>,
+) {
+    let max_freq_khz = (sample_rate / 2) as f32 / 1000.0;
+    let num_ticks = 10;
+
+    for i in 0..=num_ticks {
+        let fraction = i as f32 / num_ticks as f32;
+        let y = (TOP_MARGIN - 1) as f32 + (1.0 - fraction) * (spec_height + 1) as f32;
+
+        // Left ticks
+        let x_start_left = LEFT_MARGIN as f32 - 6.0;
+        let x_end_left = LEFT_MARGIN as f32 - 1.0;
+        draw_line_segment_mut(image, (x_start_left, y), (x_end_left, y), color);
+
+        // Right ticks
+        let x_start_right = LEFT_MARGIN as f32 + spec_width as f32 + 1.0;
+        let x_end_right = x_start_right + 5.0;
+        draw_line_segment_mut(image, (x_start_right, y), (x_end_right, y), color);
+
+        // Freq labels
+        let freq_khz = fraction * max_freq_khz;
+        let label = format!("{:.0} kHz", freq_khz);
+        let (text_width, text_height) = imageproc::drawing::text_size(scale, font, &label);
+        draw_text_mut(
+            image,
+            color,
+            (x_start_left - text_width as f32 - 8.0) as i32,
+            (y - text_height as f32 / 2.0) as i32,
+            scale,
+            font,
+            &label,
+        );
+    }
+}
+
+fn draw_dbfs_scale(
+    image: &mut RgbaImage,
+    spec_width: u32,
+    spec_height: u32,
+    font: &FontVec,
+    scale: PxScale,
+    color: Rgba<u8>,
+) {
+    let db_range: f32 = -120.0;
+    let num_ticks = 10;
+    let gradient_x = LEFT_MARGIN as f32 + spec_width as f32 + 34.0;
+    let gradient_width = 10.0;
+    let label_x = gradient_x + gradient_width + 5.0;
+
+    for i in 0..=num_ticks {
+        let fraction = i as f32 / num_ticks as f32;
+        let y = (TOP_MARGIN - 1) as f32 + (1.0 - fraction) * (spec_height + 1) as f32;
+
+        let db_level = (fraction - 1.0) * db_range.abs();
+        let label = format!("{:.0}", db_level);
+
+        let (_, text_height) = imageproc::drawing::text_size(scale, font, &label);
+        draw_text_mut(
+            image,
+            color,
+            label_x as i32,
+            (y - text_height as f32 / 2.0) as i32,
+            scale,
+            font,
+            &label,
+        );
+    }
+}
+
 /// Creates an image with a legend template.
 /// The spectrogram itself will be drawn on top of this template later.
 pub fn draw_legend(
@@ -79,17 +205,17 @@ pub fn draw_legend(
     spec_height: u32,
     filename: &str,
     ffmpeg_settings: &str,
+    audio_info: Option<AudioInfo>,
 ) -> RgbaImage {
     let final_width = spec_width + LEFT_MARGIN + RIGHT_MARGIN;
     let final_height = spec_height + TOP_MARGIN + BOTTOM_MARGIN;
 
     // Create a new image with a black background
     let mut image = RgbaImage::new(final_width, final_height);
-    let black = Rgba([0u8, 0u8, 0u8, 255u8]);
     draw_filled_rect_mut(
         &mut image,
-        imageproc::rect::Rect::at(0, 0).of_size(final_width, final_height),
-        black,
+        Rect::at(0, 0).of_size(final_width, final_height),
+        Rgba([0u8, 0u8, 0u8, 255u8]),
     );
 
     // Draw spec borders
@@ -106,13 +232,14 @@ pub fn draw_legend(
     draw_line_segment_mut(&mut image, bottom_right, bottom_left, white);
     draw_line_segment_mut(&mut image, bottom_left, top_left, white);
 
-    // Load font (the font is included in the binary)
+    // Load font
     let font_data = include_bytes!("../assets/DejaVuSans.ttf");
     let font =
         FontVec::try_from_vec(font_data.to_vec()).expect("Error constructing Font from bytes");
 
     let font_normal = PxScale::from(16.0);
     let font_small = PxScale::from(13.0);
+    let font_scales = PxScale::from(14.0);
     let text_color = Rgba([255u8, 255u8, 255u8, 255u8]);
 
     // Draw filename
@@ -137,26 +264,31 @@ pub fn draw_legend(
         ffmpeg_settings,
     );
 
-    // kHz scale (left)
+    // Draw app name and version in top-right corner
+    let app_info = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    let (text_width, _) = imageproc::drawing::text_size(font_normal, &font, &app_info);
     draw_text_mut(
         &mut image,
         text_color,
-        25,
-        (TOP_MARGIN + spec_height / 2) as i32,
+        (final_width - text_width - 10) as i32,
+        5,
         font_normal,
         &font,
-        "kHz",
+        &app_info,
     );
 
     // dBFS gradient (right)
+    let dbfs_label = "dBFS";
+    let (text_width, _) = imageproc::drawing::text_size(font_small, &font, dbfs_label);
+    let gradient_center_x = (LEFT_MARGIN + spec_width + 34 + 5) as i32;
     draw_text_mut(
         &mut image,
         text_color,
-        (LEFT_MARGIN + spec_width + 10) as i32,
-        (TOP_MARGIN + spec_height + 10) as i32,
+        gradient_center_x - (text_width / 2) as i32,
+        (TOP_MARGIN + spec_height + 25) as i32,
         font_small,
         &font,
-        "dBFS",
+        dbfs_label,
     );
 
     // Time scale (bottom)
@@ -164,7 +296,7 @@ pub fn draw_legend(
         &mut image,
         text_color,
         (LEFT_MARGIN + spec_width / 2) as i32,
-        (TOP_MARGIN + spec_height + 25) as i32,
+        (TOP_MARGIN + spec_height + 35) as i32,
         font_normal,
         &font,
         "Time",
@@ -180,10 +312,52 @@ pub fn draw_legend(
         Rgba([0, 0, 0, 255]),
     ];
 
-    let line_x = (LEFT_MARGIN + spec_width + 19) as f32;
+    let line_x = (LEFT_MARGIN + spec_width + 34) as f32;
     let start_point = (line_x, TOP_MARGIN as f32);
     let end_point = (line_x, (TOP_MARGIN + spec_height) as f32);
     draw_gradient_line_mut(&mut image, start_point, end_point, &gradient_colors, 10);
 
+    if let Some(info) = audio_info {
+        draw_time_scale(
+            &mut image,
+            spec_width,
+            spec_height,
+            info.duration,
+            &font,
+            font_scales,
+            text_color,
+            false, // bottom
+            true,  // draw_labels
+        );
+        draw_time_scale(
+            &mut image,
+            spec_width,
+            spec_height,
+            info.duration,
+            &font,
+            font_scales,
+            text_color,
+            true,  // top
+            false, // draw_labels
+        );
+        draw_freq_scale(
+            &mut image,
+            spec_width,
+            spec_height,
+            info.sample_rate,
+            &font,
+            font_scales,
+            text_color,
+        );
+    }
+
+    draw_dbfs_scale(
+        &mut image,
+        spec_width,
+        spec_height,
+        &font,
+        font_scales,
+        text_color,
+    );
     image
 }

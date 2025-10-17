@@ -7,6 +7,12 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 
+#[derive(Clone, Copy, Debug)]
+pub struct AudioInfo {
+    pub duration: f64,
+    pub sample_rate: u32,
+}
+
 /// Converts an `image::RgbaImage` to an `eframe::egui::ColorImage`.
 pub fn rgba_image_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
     let size = [rgba_image.width() as usize, rgba_image.height() as usize];
@@ -14,15 +20,18 @@ pub fn rgba_image_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
     ColorImage::from_rgba_unmultiplied(size, pixels)
 }
 
-fn get_audio_duration(input_path: &str) -> Option<f64> {
+/// Retrieves audio information (duration and sample rate) using ffprobe.
+pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
     let output = Command::new("ffprobe")
         .args([
             "-v",
             "error",
+            "-select_streams",
+            "a:0",
             "-show_entries",
-            "format=duration",
+            "stream=duration,sample_rate",
             "-of",
-            "default=noprint_wrappers=1:nokey=1",
+            "default=noprint_wrappers=1",
             input_path,
         ])
         .output()
@@ -33,8 +42,28 @@ fn get_audio_duration(input_path: &str) -> Option<f64> {
         return None;
     }
 
-    let duration_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    duration_str.parse::<f64>().ok()
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let mut duration = None;
+    let mut sample_rate = None;
+
+    for line in output_str.lines() {
+        let parts: Vec<&str> = line.split('=').collect();
+        if parts.len() == 2 {
+            match parts[0] {
+                "duration" => duration = parts[1].parse::<f64>().ok(),
+                "sample_rate" => sample_rate = parts[1].parse::<u32>().ok(),
+                _ => {}
+            }
+        }
+    }
+
+    match (duration, sample_rate) {
+        (Some(d), Some(s)) => Some(AudioInfo {
+            duration: d,
+            sample_rate: s,
+        }),
+        _ => None,
+    }
 }
 
 /// Generates a spectrogram by calling ffmpeg and captures the output image from stdout.
@@ -141,8 +170,8 @@ pub fn stream_spectrogram_frames(
     println!("Generating spectrogram for: {}", input_path,);
     println!("{:#?}", settings);
 
-    let duration = match get_audio_duration(input_path) {
-        Some(d) if d > 0.0 => d,
+    let duration = match get_audio_info(input_path) {
+        Some(info) if info.duration > 0.0 => info.duration,
         _ => {
             eprintln!("Failed to get valid audio duration.");
             return;

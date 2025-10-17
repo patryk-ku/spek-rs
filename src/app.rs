@@ -64,8 +64,10 @@ impl MyApp {
                 .and_then(|s| s.to_str())
                 .unwrap_or("Unknown File");
             let ffmpeg_settings = "ffmpeg settings placeholder"; // TODO
+            let audio_info = utils::get_audio_info(&input_path);
 
-            let legend_rgba = legend::draw_legend(width, height, filename, ffmpeg_settings);
+            let legend_rgba =
+                legend::draw_legend(width, height, filename, ffmpeg_settings, audio_info);
             let legend_color_image = rgba_image_to_color_image(&legend_rgba);
 
             self.final_image = Some(legend_color_image.clone());
