@@ -63,11 +63,23 @@ impl MyApp {
                 .file_name()
                 .and_then(|s| s.to_str())
                 .unwrap_or("Unknown File");
-            let ffmpeg_settings = "ffmpeg settings placeholder"; // TODO
+            let ffmpeg_settings = format!(
+                "{}, {}, {}",
+                self.settings.win_func.to_string(),
+                self.settings.scale.to_string(),
+                self.settings.color_scheme.to_string()
+            );
             let audio_info = utils::get_audio_info(&input_path);
 
-            let legend_rgba =
-                legend::draw_legend(width, height, filename, ffmpeg_settings, audio_info);
+            let legend_rgba = legend::draw_legend(
+                width,
+                height,
+                filename,
+                &ffmpeg_settings,
+                audio_info,
+                self.settings.saturation,
+                self.settings.color_scheme,
+            );
             let legend_color_image = rgba_image_to_color_image(&legend_rgba);
 
             self.final_image = Some(legend_color_image.clone());
@@ -339,7 +351,17 @@ impl eframe::App for MyApp {
                                                     }
 
                                                     // Horizontal spectogram
-                                                    if !self.settings.live_mode {
+                                                    if self.settings.live_mode
+                                                        || self.settings.custom_legend
+                                                    {
+                                                        ui.add_enabled(
+                                                            false,
+                                                            egui::Checkbox::new(
+                                                                &mut dummy_false,
+                                                                "Horizontal",
+                                                            ),
+                                                        );
+                                                    } else {
                                                         if ui
                                                             .checkbox(
                                                                 &mut self.settings.horizontal,
@@ -349,14 +371,6 @@ impl eframe::App for MyApp {
                                                         {
                                                             trigger_regeneration = true;
                                                         }
-                                                    } else {
-                                                        ui.add_enabled(
-                                                            false,
-                                                            egui::Checkbox::new(
-                                                                &mut dummy_false,
-                                                                "Horizontal",
-                                                            ),
-                                                        );
                                                     }
 
                                                     ui.add_enabled(
@@ -461,7 +475,7 @@ impl eframe::App for MyApp {
 
                                         // Color scheme combobox
                                         let old_color_scheme = self.settings.color_scheme;
-                                        egui::ComboBox::from_label("Colors:")
+                                        egui::ComboBox::from_label("Color:")
                                             .selected_text(self.settings.color_scheme.to_string())
                                             .width(80.0)
                                             .height(600.0)

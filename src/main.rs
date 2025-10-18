@@ -6,6 +6,7 @@ use std::process::{Command, Stdio};
 
 mod app;
 mod legend;
+mod palettes;
 mod settings;
 mod utils;
 use app::MyApp;

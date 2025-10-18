@@ -7,10 +7,12 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct AudioInfo {
     pub duration: f64,
     pub sample_rate: u32,
+    pub format: String,
+    pub bits_per_sample: u32,
 }
 
 /// Converts an `image::RgbaImage` to an `eframe::egui::ColorImage`.
@@ -20,7 +22,7 @@ pub fn rgba_image_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
     ColorImage::from_rgba_unmultiplied(size, pixels)
 }
 
-/// Retrieves audio information (duration and sample rate) using ffprobe.
+/// Retrieves audio information (duration, sample rate, format, and bit depth) using ffprobe.
 pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
     let output = Command::new("ffprobe")
         .args([
@@ -29,7 +31,7 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
             "-select_streams",
             "a:0",
             "-show_entries",
-            "stream=duration,sample_rate",
+            "stream=duration,sample_rate,bits_per_sample,bits_per_raw_sample,codec_name:format=format_name",
             "-of",
             "default=noprint_wrappers=1",
             input_path,
@@ -45,6 +47,10 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
     let output_str = String::from_utf8_lossy(&output.stdout);
     let mut duration = None;
     let mut sample_rate = None;
+    let mut format_name = None;
+    let mut codec_name = None;
+    let mut bits_per_sample = None;
+    let mut bits_per_raw_sample = None;
 
     for line in output_str.lines() {
         let parts: Vec<&str> = line.split('=').collect();
@@ -52,15 +58,34 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
             match parts[0] {
                 "duration" => duration = parts[1].parse::<f64>().ok(),
                 "sample_rate" => sample_rate = parts[1].parse::<u32>().ok(),
+                "format_name" => format_name = Some(parts[1].to_string()),
+                "codec_name" => codec_name = Some(parts[1].to_string()),
+                "bits_per_sample" => bits_per_sample = parts[1].parse::<u32>().ok(),
+                "bits_per_raw_sample" => bits_per_raw_sample = parts[1].parse::<u32>().ok(),
                 _ => {}
             }
         }
     }
 
-    match (duration, sample_rate) {
-        (Some(d), Some(s)) => Some(AudioInfo {
+    let mut final_bits = bits_per_sample.unwrap_or(0);
+    if let Some(raw_bits) = bits_per_raw_sample {
+        if raw_bits > 0 {
+            final_bits = raw_bits;
+        }
+    }
+
+    let format = if let Some(f) = format_name {
+        if f.contains(',') { codec_name } else { Some(f) }
+    } else {
+        codec_name
+    };
+
+    match (duration, sample_rate, format) {
+        (Some(d), Some(s), Some(f)) => Some(AudioInfo {
             duration: d,
             sample_rate: s,
+            format: f,
+            bits_per_sample: final_bits,
         }),
         _ => None,
     }
@@ -83,7 +108,7 @@ pub fn generate_spectrogram_in_memory(
         "combined"
     };
 
-    let orientation = if settings.horizontal {
+    let orientation = if settings.horizontal && !settings.custom_legend {
         "horizontal"
     } else {
         "vertical"
@@ -184,11 +209,11 @@ pub fn stream_spectrogram_frames(
     } else {
         "combined"
     };
-    let orientation = if settings.horizontal {
-        "horizontal"
-    } else {
-        "vertical"
-    };
+    // let orientation = if settings.horizontal && !settings.custom_legend {
+    //     "horizontal"
+    // } else {
+    //     "vertical"
+    // };
     let temp_width = 10;
 
     let lavfi_filter = format!(
@@ -201,7 +226,7 @@ pub fn stream_spectrogram_frames(
         settings.gain,
         settings.saturation,
         mode,
-        orientation
+        "vertical", // orientation
     );
 
     let mut cmd = match Command::new("ffmpeg")

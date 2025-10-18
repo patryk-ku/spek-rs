@@ -1,3 +1,4 @@
+use crate::palettes;
 use crate::utils::AudioInfo;
 use ab_glyph::{FontVec, PxScale};
 use image::{Rgba, RgbaImage};
@@ -8,71 +9,6 @@ pub const TOP_MARGIN: u32 = 64;
 pub const BOTTOM_MARGIN: u32 = 64;
 pub const LEFT_MARGIN: u32 = 141;
 pub const RIGHT_MARGIN: u32 = 141;
-
-// Helper function for linear interpolation of color components
-fn lerp(start: u8, end: u8, t: f32) -> u8 {
-    (start as f32 * (1.0 - t) + end as f32 * t) as u8
-}
-
-pub fn draw_gradient_line_mut(
-    image: &mut RgbaImage,
-    start: (f32, f32),
-    end: (f32, f32),
-    colors: &[Rgba<u8>; 5],
-    thickness: u32,
-) {
-    let (x0, y0) = start;
-    let (x1, y1) = end;
-
-    let dx = x1 - x0;
-    let dy = y1 - y0;
-
-    let steps = dx.abs().max(dy.abs());
-
-    if steps < 1.0 {
-        if (x0 as u32) < image.width() && (y0 as u32) < image.height() {
-            let color = colors[0];
-            for i in 0..thickness {
-                let x = (x0 as u32) + i;
-                if x < image.width() {
-                    image.put_pixel(x, y0 as u32, color);
-                }
-            }
-        }
-        return;
-    }
-
-    for i in 0..=steps as i32 {
-        let t = i as f32 / steps;
-        let x = (x0 + t * dx).round() as u32;
-        let y = (y0 + t * dy).round() as u32;
-
-        // Determine which two colors to interpolate between
-        let num_segments = (colors.len() - 1) as f32;
-        let segment_float = t * num_segments;
-        let color_index = (segment_float.floor() as usize).min(colors.len() - 2);
-
-        let segment_t = segment_float - color_index as f32;
-
-        let start_color = colors[color_index];
-        let end_color = colors[color_index + 1];
-
-        // Interpolate each color channel
-        let r = lerp(start_color[0], end_color[0], segment_t);
-        let g = lerp(start_color[1], end_color[1], segment_t);
-        let b = lerp(start_color[2], end_color[2], segment_t);
-        let a = lerp(start_color[3], end_color[3], segment_t);
-        let color = Rgba([r, g, b, a]);
-
-        // Draw a horizontal line for thickness
-        for i in 0..thickness {
-            let current_x = x + i;
-            if current_x < image.width() && y < image.height() {
-                image.put_pixel(current_x, y, color);
-            }
-        }
-    }
-}
 
 fn draw_time_scale(
     image: &mut RgbaImage,
@@ -88,7 +24,7 @@ fn draw_time_scale(
     let num_ticks = 10;
     for i in 0..=num_ticks {
         let fraction = i as f32 / num_ticks as f32;
-        let x = LEFT_MARGIN as f32 + fraction * spec_width as f32;
+        let x = (LEFT_MARGIN - 1) as f32 + fraction * (spec_width as f32 + 1.0); // "- 1" so it starts with border
 
         let (y_start, y_end, label_y) = if is_top {
             let y_start = TOP_MARGIN as f32 - 6.0;
@@ -198,6 +134,140 @@ fn draw_dbfs_scale(
     }
 }
 
+fn truncate_text(font: &FontVec, scale: PxScale, text: &str, max_width: u32) -> String {
+    let (text_width, _) = imageproc::drawing::text_size(scale, font, text);
+    if text_width <= max_width {
+        return text.to_string();
+    }
+
+    let ellipsis = "...";
+    let (ellipsis_width, _) = imageproc::drawing::text_size(scale, font, ellipsis);
+
+    let mut truncated = text.to_string();
+    if max_width > ellipsis_width {
+        // Try to fit with ellipsis
+        let target_width = max_width - ellipsis_width;
+        while !truncated.is_empty() {
+            let (w, _) = imageproc::drawing::text_size(scale, font, &truncated);
+            if w <= target_width {
+                truncated.push_str(ellipsis);
+                return truncated;
+            }
+            truncated.pop();
+        }
+    }
+    String::new()
+}
+
+fn yuv8bit_to_rgb(y: f32, u: f32, v: f32) -> Rgba<u8> {
+    // Formula for full-range YUV [0,255] to RGB [0,255]
+    let u = u - 128.0;
+    let v = v - 128.0;
+
+    let r = y + 1.402 * v;
+    let g = y - 0.344136 * u - 0.714136 * v;
+    let b = y + 1.772 * u;
+
+    Rgba([
+        r.clamp(0.0, 255.0) as u8,
+        g.clamp(0.0, 255.0) as u8,
+        b.clamp(0.0, 255.0) as u8,
+        255,
+    ])
+}
+
+pub fn draw_gradient_line_mut(
+    image: &mut RgbaImage,
+    start: (f32, f32),
+    end: (f32, f32),
+    palette: &[(f32, f32, f32, f32)], // (stop, y, u, v)
+    saturation: f32,
+    thickness: u32,
+) {
+    let (x0, y0) = start;
+    let (x1, y1) = end;
+
+    let dx = x1 - x0;
+    let dy = y1 - y0;
+
+    let steps = dx.abs().max(dy.abs());
+
+    if steps < 1.0 {
+        if (x0 as u32) < image.width() && (y0 as u32) < image.height() {
+            let (_, y_interp, u_interp, v_interp) = palette[0];
+            let y_8bit = y_interp * 255.0;
+            let u_8bit = 128.0 + u_interp * 255.0 * saturation;
+            let v_8bit = 128.0 + v_interp * 255.0 * saturation;
+            let color = yuv8bit_to_rgb(
+                y_8bit.clamp(0.0, 255.0),
+                u_8bit.clamp(0.0, 255.0),
+                v_8bit.clamp(0.0, 255.0),
+            );
+            for i in 0..thickness {
+                let x = (x0 as u32) + i;
+                if x < image.width() {
+                    image.put_pixel(x, y0 as u32, color);
+                }
+            }
+        }
+        return;
+    }
+
+    for i in 0..=steps as i32 {
+        let t = i as f32 / steps;
+        let a = 1.0 - t; // Reverse the gradient direction (0.0 at bottom, 1.0 at top)
+        let x_pos = (x0 + t * dx).round() as u32;
+        let y_pos = (y0 + t * dy).round() as u32;
+
+        // Find the segment in the palette that `a` falls into
+        let mut end_idx = 1;
+        while end_idx < palette.len() - 1 && palette[end_idx].0 < a {
+            end_idx += 1;
+        }
+        let start_idx = end_idx - 1;
+
+        let start_stop = palette[start_idx];
+        let end_stop = palette[end_idx];
+
+        let (start_a, start_y, start_u, start_v) = start_stop;
+        let (end_a, end_y, end_u, end_v) = end_stop;
+
+        // Calculate interpolation factor within the segment
+        let lerp_frac = if (end_a - start_a).abs() < f32::EPSILON {
+            0.0
+        } else {
+            (a - start_a) / (end_a - start_a)
+        };
+
+        // Interpolate Y, U, V
+        let y_interp = start_y * (1.0 - lerp_frac) + end_y * lerp_frac;
+        let u_interp = start_u * (1.0 - lerp_frac) + end_u * lerp_frac;
+        let v_interp = start_v * (1.0 - lerp_frac) + end_v * lerp_frac;
+
+        // Construct 8-bit YUV pixel, applying saturation, to match ffmpeg's internal pipeline
+        let y_8bit = y_interp * 255.0;
+        let u_8bit = 128.0 + u_interp * 255.0 * saturation;
+        let v_8bit = 128.0 + v_interp * 255.0 * saturation;
+
+        // Clip YUV components before conversion, which is crucial for high saturation
+        let color = yuv8bit_to_rgb(
+            y_8bit.clamp(0.0, 255.0),
+            u_8bit.clamp(0.0, 255.0),
+            v_8bit.clamp(0.0, 255.0),
+        );
+
+        // Draw a horizontal line for thickness
+        for k in 0..thickness {
+            let current_x = x_pos + k;
+            if current_x < image.width() && y_pos < image.height() {
+                image.put_pixel(current_x, y_pos, color);
+            }
+        }
+    }
+}
+
+use crate::settings::SpectrogramColorScheme;
+
 /// Creates an image with a legend template.
 /// The spectrogram itself will be drawn on top of this template later.
 pub fn draw_legend(
@@ -206,6 +276,8 @@ pub fn draw_legend(
     filename: &str,
     ffmpeg_settings: &str,
     audio_info: Option<AudioInfo>,
+    saturation: f32,
+    color_scheme: SpectrogramColorScheme,
 ) -> RgbaImage {
     let final_width = spec_width + LEFT_MARGIN + RIGHT_MARGIN;
     let final_height = spec_height + TOP_MARGIN + BOTTOM_MARGIN;
@@ -243,25 +315,42 @@ pub fn draw_legend(
     let text_color = Rgba([255u8, 255u8, 255u8, 255u8]);
 
     // Draw filename
+    let truncated_filename = truncate_text(&font, font_normal, filename, spec_width);
     draw_text_mut(
         &mut image,
         text_color,
         LEFT_MARGIN as i32,
-        5,
+        10,
         font_normal,
         &font,
-        filename,
+        &truncated_filename,
     );
 
     // Draw ffmpeg settings
+    let mut display_string = String::from(ffmpeg_settings);
+    if let Some(info) = &audio_info {
+        let mut details = Vec::new();
+        details.push(info.format.to_uppercase());
+        details.push(format!("{} Hz", info.sample_rate));
+        if info.bits_per_sample > 0 {
+            details.push(format!("{} bit", info.bits_per_sample));
+        }
+        let audio_details = details.join(", ");
+        if !ffmpeg_settings.is_empty() {
+            display_string = format!("{}, {}", audio_details, ffmpeg_settings);
+        } else {
+            display_string = audio_details;
+        }
+    }
+    let truncated_display_string = truncate_text(&font, font_normal, &display_string, spec_width);
     draw_text_mut(
         &mut image,
         text_color,
         LEFT_MARGIN as i32,
-        23,
+        28,
         font_normal,
         &font,
-        ffmpeg_settings,
+        &truncated_display_string,
     );
 
     // Draw app name and version in top-right corner
@@ -303,19 +392,11 @@ pub fn draw_legend(
     );
 
     // dBFS vertical gradient line on the right
-    // TMP: only "Intensity" palette
-    let gradient_colors = [
-        Rgba([253, 254, 249, 255]),
-        Rgba([252, 175, 0, 255]),
-        Rgba([190, 2, 39, 255]),
-        Rgba([69, 0, 111, 255]),
-        Rgba([0, 0, 0, 255]),
-    ];
-
+    let palette = palettes::get_palette(color_scheme);
     let line_x = (LEFT_MARGIN + spec_width + 34) as f32;
     let start_point = (line_x, TOP_MARGIN as f32);
     let end_point = (line_x, (TOP_MARGIN + spec_height) as f32);
-    draw_gradient_line_mut(&mut image, start_point, end_point, &gradient_colors, 10);
+    draw_gradient_line_mut(&mut image, start_point, end_point, palette, saturation, 10);
 
     if let Some(info) = audio_info {
         draw_time_scale(

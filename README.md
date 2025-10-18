@@ -9,6 +9,12 @@ The main difference from the original is that the legend around the spectrogram 
 
 ## TODO
 - [x] Save and load settings from a configuration file
+- [x] Draw captions at the top of the image like original
+- [x] Custom legend rendering
 - [ ] Add keyboard shortcuts
-- [ ] Draw captions at the top of the image like original
-- [ ] Custom legend rendering
+
+## Credits
+
+This project is heavily inspired by the original [Spek](https://www.spek.cc/).
+
+The color palettes for the spectrogram are based on those found in the [FFmpeg](https://ffmpeg.org/) source code.
