@@ -456,13 +456,13 @@ pub fn draw_legend(
 
     // Draw app name and version in top-right corner
     let app_info = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    let (text_width, _) = imageproc::drawing::text_size(font_normal, &font, &app_info);
+    let (text_width, _) = imageproc::drawing::text_size(font_small, &font, &app_info);
     draw_text_mut(
         &mut image,
         text_color,
         (final_width - text_width - 10) as i32,
         5,
-        font_normal,
+        font_small,
         &font,
         &app_info,
     );
