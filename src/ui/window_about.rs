@@ -17,6 +17,9 @@ pub fn show(ctx: &egui::Context, is_open: &mut bool) {
                 ui.label("Released under the MIT License.");
                 ui.add_space(10.0);
                 ui.hyperlink("https://github.com/patryk-ku/spek-rs");
+                ui.add_space(10.0);
+                ui.label("This project uses DejaVu Sans font.");
+                ui.hyperlink("https://dejavu-fonts.github.io/License.html");
             });
         });
 }

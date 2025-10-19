@@ -17,4 +17,6 @@ The main difference from the original is that the legend around the spectrogram 
 
 This project is heavily inspired by the original [Spek](https://www.spek.cc/).
 
+It includes the [DejaVu Sans](https://dejavu-fonts.github.io/) font, which is distributed under its own license, see [LICENSE-DejaVuFonts.txt](./assets/LICENSE-DejaVuFonts.txt) for details.
+
 The color palettes for the spectrogram are based on those found in the [FFmpeg](https://ffmpeg.org/) source code.

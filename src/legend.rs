@@ -406,7 +406,7 @@ pub fn draw_legend(
     draw_line_segment_mut(&mut image, bottom_left, top_left, white);
 
     // Load font
-    let font_data = include_bytes!("../assets/DejaVuSans.ttf");
+    let font_data = include_bytes!("../assets/DejaVuLGCSans.ttf");
     let font =
         FontVec::try_from_vec(font_data.to_vec()).expect("Error constructing Font from bytes");
 
