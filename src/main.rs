@@ -4,12 +4,12 @@ use eframe::egui;
 use std::env;
 use std::process::{Command, Stdio};
 
-mod app;
+mod ui;
+use ui::MyApp;
 mod legend;
 mod palettes;
 mod settings;
 mod utils;
-use app::MyApp;
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
