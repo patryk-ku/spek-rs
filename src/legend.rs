@@ -1,6 +1,7 @@
 use crate::palettes;
 use crate::utils::AudioInfo;
-use ab_glyph::{FontVec, PxScale};
+use ab_glyph::{Font, FontVec, PxScale};
+use font_kit::source::SystemSource;
 use image::{Rgba, RgbaImage};
 use imageproc::drawing::{draw_filled_rect_mut, draw_line_segment_mut, draw_text_mut};
 use imageproc::rect::Rect;
@@ -109,7 +110,7 @@ fn draw_freq_scale(
                     image,
                     color,
                     (x_start_left - text_width as f32 - 8.0) as i32,
-                    (y - text_height as f32 / 2.0) as i32,
+                    (y - text_height as f32 / 2.0) as i32 - 2,
                     scale,
                     font,
                     &label,
@@ -145,7 +146,7 @@ fn draw_dbfs_scale(
             image,
             color,
             label_x as i32,
-            (y - text_height as f32 / 2.0) as i32,
+            (y - text_height as f32 / 2.0) as i32 - 2,
             scale,
             font,
             &label,
@@ -176,6 +177,86 @@ fn truncate_text(font: &FontVec, scale: PxScale, text: &str, max_width: u32) -> 
         }
     }
     String::new()
+}
+
+fn draw_text_with_fallback(
+    image: &mut RgbaImage,
+    color: Rgba<u8>,
+    x: i32,
+    y: i32,
+    scale: PxScale,
+    primary_font: &FontVec,
+    text: &str,
+    max_width: u32,
+) {
+    let text_to_draw = truncate_text(primary_font, scale, text, max_width);
+
+    let source = SystemSource::new();
+    let mut current_x = x as f32;
+    let mut last_fallback: Option<FontVec> = None; // The cache
+
+    for ch in text_to_draw.chars() {
+        let char_str = ch.to_string();
+        let mut selected_font: &FontVec = primary_font; // Default to primary
+
+        if primary_font.glyph_id(ch).0 == 0 {
+            // Not in primary. Check cache.
+            let mut found = false;
+            if let Some(cached) = &last_fallback {
+                if cached.glyph_id(ch).0 != 0 {
+                    selected_font = cached;
+                    found = true;
+                }
+            }
+
+            // If not found in cache, scan.
+            if !found {
+                if let Ok(all_fonts) = source.all_fonts() {
+                    for handle in all_fonts {
+                        if let Ok(font) = handle.load() {
+                            if font.glyph_for_char(ch).is_some() {
+                                // println!(
+                                //     "Found fallback font '{}' for character '{}'",
+                                //     font.postscript_name()
+                                //         .unwrap_or_else(|| "Unknown".to_string()),
+                                //     ch
+                                // );
+                                if let Some(font_data) = font.copy_font_data() {
+                                    if let Ok(font_vec) = FontVec::try_from_vec(font_data.to_vec())
+                                    {
+                                        last_fallback = Some(font_vec);
+                                        selected_font = last_fallback.as_ref().unwrap();
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !found {
+                println!(
+                    "Could not find any fallback font on the system for character: '{}'",
+                    ch
+                );
+            }
+        }
+
+        // Draw the character with the selected font.
+        draw_text_mut(
+            image,
+            color,
+            current_x as i32,
+            y,
+            scale,
+            selected_font,
+            &char_str,
+        );
+        let (w, _) = imageproc::drawing::text_size(scale, selected_font, &char_str);
+        current_x += w as f32;
+    }
 }
 
 fn yuv8bit_to_rgb(y: f32, u: f32, v: f32) -> Rgba<u8> {
@@ -335,15 +416,15 @@ pub fn draw_legend(
     let text_color = Rgba([255u8, 255u8, 255u8, 255u8]);
 
     // Draw filename
-    let truncated_filename = truncate_text(&font, font_normal, filename, spec_width);
-    draw_text_mut(
+    draw_text_with_fallback(
         &mut image,
         text_color,
         LEFT_MARGIN as i32,
         10,
         font_normal,
         &font,
-        &truncated_filename,
+        filename,
+        spec_width,
     );
 
     // Draw ffmpeg settings
