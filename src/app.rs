@@ -16,10 +16,16 @@ pub struct MyApp {
     image_receiver: Option<Receiver<Option<ColorImage>>>,
     spectrogram_slice_position: usize,
     about_window_open: bool,
+    audio_info: Option<utils::AudioInfo>,
 }
 
 impl MyApp {
     pub fn new(image: Option<ColorImage>, input_path: Option<String>) -> Self {
+        let audio_info = if let Some(path) = &input_path {
+            utils::get_audio_info(path)
+        } else {
+            None
+        };
         Self {
             texture: None,
             final_image: image,
@@ -29,6 +35,7 @@ impl MyApp {
             image_receiver: None,
             spectrogram_slice_position: 0,
             about_window_open: false,
+            audio_info,
         }
     }
 
@@ -69,7 +76,7 @@ impl MyApp {
                 self.settings.scale.to_string(),
                 self.settings.color_scheme.to_string()
             );
-            let audio_info = utils::get_audio_info(&input_path);
+            let audio_info = self.audio_info.clone();
 
             let legend_rgba = legend::draw_legend(
                 width,
@@ -79,6 +86,7 @@ impl MyApp {
                 audio_info,
                 self.settings.saturation,
                 self.settings.color_scheme,
+                self.settings.split_channels,
             );
             let legend_color_image = rgba_image_to_color_image(&legend_rgba);
 
@@ -253,6 +261,9 @@ impl eframe::App for MyApp {
                                 if ui.button("Open File...").clicked() {
                                     if let Some(path) = rfd::FileDialog::new().pick_file() {
                                         self.input_path = Some(path.display().to_string());
+                                        self.audio_info = utils::get_audio_info(
+                                            self.input_path.as_ref().unwrap(),
+                                        );
                                         trigger_regeneration = true;
                                     }
                                 }
@@ -340,14 +351,30 @@ impl eframe::App for MyApp {
                                                     }
 
                                                     // Split channels checkbox
-                                                    if ui
-                                                        .checkbox(
-                                                            &mut self.settings.split_channels,
-                                                            "Split channels",
-                                                        )
-                                                        .changed()
-                                                    {
-                                                        trigger_regeneration = true;
+                                                    let has_multiple_channels =
+                                                        match &self.audio_info {
+                                                            Some(info) => info.channels > 1,
+                                                            None => false,
+                                                        };
+
+                                                    if has_multiple_channels {
+                                                        if ui
+                                                            .checkbox(
+                                                                &mut self.settings.split_channels,
+                                                                "Split channels",
+                                                            )
+                                                            .changed()
+                                                        {
+                                                            trigger_regeneration = true;
+                                                        }
+                                                    } else {
+                                                        ui.add_enabled(
+                                                            false,
+                                                            egui::Checkbox::new(
+                                                                &mut dummy_false,
+                                                                "Split channels",
+                                                            ),
+                                                        );
                                                     }
 
                                                     // Horizontal spectogram

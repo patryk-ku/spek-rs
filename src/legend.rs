@@ -62,41 +62,60 @@ fn draw_freq_scale(
     image: &mut RgbaImage,
     spec_width: u32,
     spec_height: u32,
-    sample_rate: u32,
+    audio_info: AudioInfo,
     font: &FontVec,
     scale: PxScale,
     color: Rgba<u8>,
+    split_channels: bool,
 ) {
-    let max_freq_khz = (sample_rate / 2) as f32 / 1000.0;
-    let num_ticks = 10;
+    let max_freq_khz = (audio_info.sample_rate / 2) as f32 / 1000.0;
+    let draw_multi_channel = audio_info.channels > 1 && split_channels;
 
-    for i in 0..=num_ticks {
-        let fraction = i as f32 / num_ticks as f32;
-        let y = (TOP_MARGIN - 1) as f32 + (1.0 - fraction) * (spec_height + 1) as f32;
+    let channel_count = if draw_multi_channel { 2 } else { 1 };
+    let height_per_channel = if draw_multi_channel {
+        spec_height / 2
+    } else {
+        spec_height
+    };
 
-        // Left ticks
-        let x_start_left = LEFT_MARGIN as f32 - 6.0;
-        let x_end_left = LEFT_MARGIN as f32 - 1.0;
-        draw_line_segment_mut(image, (x_start_left, y), (x_end_left, y), color);
+    for channel in 0..channel_count {
+        let y_offset = TOP_MARGIN + (channel * height_per_channel);
+        let num_ticks = if draw_multi_channel { 5 } else { 10 };
+        for i in 0..=num_ticks {
+            let fraction = i as f32 / num_ticks as f32;
+            let y = (y_offset - 1) as f32 + (1.0 - fraction) * (height_per_channel + 1) as f32;
 
-        // Right ticks
-        let x_start_right = LEFT_MARGIN as f32 + spec_width as f32 + 1.0;
-        let x_end_right = x_start_right + 5.0;
-        draw_line_segment_mut(image, (x_start_right, y), (x_end_right, y), color);
+            let x_start_left = LEFT_MARGIN as f32 - 6.0;
 
-        // Freq labels
-        let freq_khz = fraction * max_freq_khz;
-        let label = format!("{:.0} kHz", freq_khz);
-        let (text_width, text_height) = imageproc::drawing::text_size(scale, font, &label);
-        draw_text_mut(
-            image,
-            color,
-            (x_start_left - text_width as f32 - 8.0) as i32,
-            (y - text_height as f32 / 2.0) as i32,
-            scale,
-            font,
-            &label,
-        );
+            if !(draw_multi_channel && channel == 1 && i == num_ticks) {
+                // Left ticks
+                let x_end_left = LEFT_MARGIN as f32 - 1.0;
+                draw_line_segment_mut(image, (x_start_left, y), (x_end_left, y), color);
+
+                // Right ticks
+                let x_start_right = LEFT_MARGIN as f32 + spec_width as f32 + 1.0;
+                let x_end_right = x_start_right + 5.0;
+                draw_line_segment_mut(image, (x_start_right, y), (x_end_right, y), color);
+            }
+
+            // Freq labels
+            if draw_multi_channel && channel == 1 && i == num_ticks {
+                // Skip max freq label for bottom channel to avoid overlap
+            } else {
+                let freq_khz = fraction * max_freq_khz;
+                let label = format!("{:.0} kHz", freq_khz);
+                let (text_width, text_height) = imageproc::drawing::text_size(scale, font, &label);
+                draw_text_mut(
+                    image,
+                    color,
+                    (x_start_left - text_width as f32 - 8.0) as i32,
+                    (y - text_height as f32 / 2.0) as i32,
+                    scale,
+                    font,
+                    &label,
+                );
+            }
+        }
     }
 }
 
@@ -278,6 +297,7 @@ pub fn draw_legend(
     audio_info: Option<AudioInfo>,
     saturation: f32,
     color_scheme: SpectrogramColorScheme,
+    split_channels: bool,
 ) -> RgbaImage {
     let final_width = spec_width + LEFT_MARGIN + RIGHT_MARGIN;
     let final_height = spec_height + TOP_MARGIN + BOTTOM_MARGIN;
@@ -425,10 +445,11 @@ pub fn draw_legend(
             &mut image,
             spec_width,
             spec_height,
-            info.sample_rate,
+            info,
             &font,
             font_scales,
             text_color,
+            split_channels,
         );
     }
 

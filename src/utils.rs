@@ -13,6 +13,7 @@ pub struct AudioInfo {
     pub sample_rate: u32,
     pub format: String,
     pub bits_per_sample: u32,
+    pub channels: u32,
 }
 
 /// Converts an `image::RgbaImage` to an `eframe::egui::ColorImage`.
@@ -31,7 +32,7 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
             "-select_streams",
             "a:0",
             "-show_entries",
-            "stream=duration,sample_rate,bits_per_sample,bits_per_raw_sample,codec_name:format=format_name",
+            "stream=duration,sample_rate,bits_per_sample,bits_per_raw_sample,codec_name,channels:format=format_name",
             "-of",
             "default=noprint_wrappers=1",
             input_path,
@@ -51,6 +52,7 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
     let mut codec_name = None;
     let mut bits_per_sample = None;
     let mut bits_per_raw_sample = None;
+    let mut channels = None;
 
     for line in output_str.lines() {
         let parts: Vec<&str> = line.split('=').collect();
@@ -62,6 +64,7 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
                 "codec_name" => codec_name = Some(parts[1].to_string()),
                 "bits_per_sample" => bits_per_sample = parts[1].parse::<u32>().ok(),
                 "bits_per_raw_sample" => bits_per_raw_sample = parts[1].parse::<u32>().ok(),
+                "channels" => channels = parts[1].parse::<u32>().ok(),
                 _ => {}
             }
         }
@@ -80,12 +83,13 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
         codec_name
     };
 
-    match (duration, sample_rate, format) {
-        (Some(d), Some(s), Some(f)) => Some(AudioInfo {
+    match (duration, sample_rate, format, channels) {
+        (Some(d), Some(s), Some(f), Some(c)) => Some(AudioInfo {
             duration: d,
             sample_rate: s,
             format: f,
             bits_per_sample: final_bits,
+            channels: c,
         }),
         _ => None,
     }
