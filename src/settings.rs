@@ -205,6 +205,8 @@ pub struct AppSettings {
     pub live_mode: bool,
     pub remember_settings: bool,
     pub custom_legend: bool,
+    pub save_window_size: bool,
+    pub window_size: [f32; 2],
 }
 
 impl Default for AppSettings {
@@ -224,6 +226,8 @@ impl Default for AppSettings {
             live_mode: false,
             remember_settings: false,
             custom_legend: true,
+            save_window_size: false,
+            window_size: [500.0 + 180.0, 320.0 + 128.0 + 39.0],
         }
     }
 }

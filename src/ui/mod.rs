@@ -25,7 +25,11 @@ pub struct MyApp {
 }
 
 impl MyApp {
-    pub fn new(image: Option<ColorImage>, input_path: Option<String>) -> Self {
+    pub fn new(
+        image: Option<ColorImage>,
+        input_path: Option<String>,
+        app_settings: AppSettings,
+    ) -> Self {
         let audio_info = if let Some(path) = &input_path {
             utils::get_audio_info(path)
         } else {
@@ -35,7 +39,7 @@ impl MyApp {
             texture: None,
             final_image: image,
             input_path,
-            settings: AppSettings::load(),
+            settings: app_settings,
             is_generating: false,
             image_receiver: None,
             spectrogram_slice_position: 0,
@@ -224,6 +228,16 @@ impl eframe::App for MyApp {
                     if let Err(mpsc::TryRecvError::Disconnected) = receiver.try_recv() {
                         self.is_generating = false;
                         self.image_receiver = None;
+
+                        // Save window size after live spectrogram is ready
+                        if self.settings.save_window_size {
+                            let inner_size = ctx
+                                .input(|i| i.viewport().inner_rect)
+                                .unwrap_or(egui::Rect::ZERO)
+                                .size();
+                            self.settings.window_size = [inner_size.x, inner_size.y];
+                            self.settings.save();
+                        }
                     }
                 } else {
                     // Normal mode: receive the full spectrogram
@@ -260,6 +274,16 @@ impl eframe::App for MyApp {
                                     Default::default(),
                                 ));
                                 self.final_image = Some(new_spectrogram);
+                            }
+
+                            // Save window size after spectrogram is ready
+                            if self.settings.save_window_size {
+                                let inner_size = ctx
+                                    .input(|i| i.viewport().inner_rect)
+                                    .unwrap_or(egui::Rect::ZERO)
+                                    .size();
+                                self.settings.window_size = [inner_size.x, inner_size.y];
+                                self.settings.save();
                             }
                         }
                     }

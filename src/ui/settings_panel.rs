@@ -125,14 +125,17 @@ impl MyApp {
                     } else {
                         ui.add_enabled(
                             false,
-                            egui::Checkbox::new(&mut dummy_false, "Resize with window"),
+                            egui::Checkbox::new(&mut dummy_false, "Resize to window"),
                         );
                     }
 
-                    ui.add_enabled(
-                        false,
-                        egui::Checkbox::new(&mut dummy_false, "Save window size"),
-                    );
+                    if ui
+                        .checkbox(&mut self.settings.save_window_size, "Save window size")
+                        .on_hover_text("Save and restore window size on startup.")
+                        .changed()
+                    {
+                        self.settings.save();
+                    }
 
                     ui.add_enabled_ui(!self.settings.resize_with_window, |ui| {
                         self.show_custom_res_controls(ui, trigger_regeneration);

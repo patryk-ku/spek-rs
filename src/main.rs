@@ -38,13 +38,25 @@ fn main() -> eframe::Result {
         }
     }
 
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
+    let app_settings = settings::AppSettings::load();
+
+    let options = {
+        let mut viewport = egui::ViewportBuilder::default();
+
+        if app_settings.save_window_size {
+            viewport = viewport.with_inner_size(app_settings.window_size);
+        } else {
             // spectogram + legend, spectogram + legend + menu bar
-            .with_inner_size([500.0 + 180.0, 320.0 + 128.0 + 39.0])
+            viewport = viewport.with_inner_size([500.0 + 180.0, 320.0 + 128.0 + 39.0]);
+        }
+        viewport = viewport
             .with_min_inner_size([500.0 + 180.0, 320.0 + 128.0 + 39.0])
-            .with_resizable(true),
-        ..Default::default()
+            .with_resizable(true);
+
+        eframe::NativeOptions {
+            viewport,
+            ..Default::default()
+        }
     };
 
     eframe::run_native(
@@ -53,8 +65,7 @@ fn main() -> eframe::Result {
         Box::new(move |_cc| {
             egui_extras::install_image_loaders(&_cc.egui_ctx);
             _cc.egui_ctx.set_theme(egui::Theme::Dark);
-            // Ok(Box::new(MyApp::new(spectrogram_image, input_path)))
-            Ok(Box::new(MyApp::new(None, input_path)))
+            Ok(Box::new(MyApp::new(None, input_path, app_settings)))
         }),
     )
 }
