@@ -114,18 +114,29 @@ impl MyApp {
                         ui.separator();
                     }
 
-                    ui.add_enabled(
-                        false,
-                        egui::Checkbox::new(&mut dummy_false, "Resize with window"),
-                    )
-                    .on_hover_text("Set sectrogram resolution to match window size.");
+                    if !self.settings.custom_resolution {
+                        if ui
+                            .checkbox(&mut self.settings.resize_with_window, "Resize to window")
+                            .on_hover_text("Set sectrogram resolution to match window size.")
+                            .changed()
+                        {
+                            *trigger_regeneration = true;
+                        }
+                    } else {
+                        ui.add_enabled(
+                            false,
+                            egui::Checkbox::new(&mut dummy_false, "Resize with window"),
+                        );
+                    }
 
                     ui.add_enabled(
                         false,
                         egui::Checkbox::new(&mut dummy_false, "Save window size"),
                     );
 
-                    self.show_custom_res_controls(ui, trigger_regeneration);
+                    ui.add_enabled_ui(!self.settings.resize_with_window, |ui| {
+                        self.show_custom_res_controls(ui, trigger_regeneration);
+                    });
 
                     ui.separator();
 
@@ -287,6 +298,9 @@ impl MyApp {
             .checkbox(&mut self.settings.custom_resolution, "Custom size")
             .changed()
         {
+            if self.settings.custom_resolution {
+                self.settings.resize_with_window = false;
+            }
             *trigger_regeneration = true;
         }
 

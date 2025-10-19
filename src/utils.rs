@@ -101,6 +101,7 @@ pub fn generate_spectrogram_in_memory(
     settings: &AppSettings,
     width: u32,
     height: u32,
+    cancel_token: std::sync::Arc<std::sync::atomic::AtomicBool>,
 ) -> Option<ColorImage> {
     let start = Instant::now();
     println!("Generating spectrogram for: {}", input_path,);
@@ -132,7 +133,7 @@ pub fn generate_spectrogram_in_memory(
         orientation
     );
 
-    let mut cmd = Command::new("ffmpeg")
+    let mut cmd = match Command::new("ffmpeg")
         .args([
             "-hide_banner",
             "-loglevel",
@@ -148,16 +149,47 @@ pub fn generate_spectrogram_in_memory(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .ok()?;
+    {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            eprintln!("Failed to spawn ffmpeg: {}", e);
+            return None;
+        }
+    };
 
     let mut stdout = cmd.stdout.take().unwrap();
     let mut buffer = Vec::new();
-    if stdout.read_to_end(&mut buffer).is_err() {
-        eprintln!("Failed to read ffmpeg stdout");
-        return None;
+    let mut read_buf = [0; 4096]; // 4KB buffer
+
+    loop {
+        if cancel_token.load(std::sync::atomic::Ordering::Relaxed) {
+            if let Err(e) = cmd.kill() {
+                eprintln!("Failed to kill ffmpeg process: {}", e);
+            }
+            return None;
+        }
+
+        match stdout.read(&mut read_buf) {
+            Ok(0) => break, // EOF
+            Ok(n) => buffer.extend_from_slice(&read_buf[..n]),
+            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => {
+                eprintln!("Failed to read ffmpeg stdout: {}", e);
+                if let Err(e) = cmd.kill() {
+                    eprintln!("Failed to kill ffmpeg process: {}", e);
+                }
+                return None;
+            }
+        }
     }
 
-    let status = cmd.wait().ok()?;
+    let status = match cmd.wait() {
+        Ok(status) => status,
+        Err(e) => {
+            eprintln!("Failed to wait for ffmpeg process: {}", e);
+            return None;
+        }
+    };
 
     if !status.success() {
         let mut stderr_output = String::new();
@@ -194,6 +226,7 @@ pub fn stream_spectrogram_frames(
     settings: &AppSettings,
     width: u32,
     height: u32,
+    cancel_token: std::sync::Arc<std::sync::atomic::AtomicBool>,
 ) {
     let start = Instant::now();
     println!("Generating spectrogram for: {}", input_path,);
@@ -275,6 +308,12 @@ pub fn stream_spectrogram_frames(
     }
 
     loop {
+        if cancel_token.load(std::sync::atomic::Ordering::Relaxed) {
+            if let Err(e) = cmd.kill() {
+                eprintln!("Failed to kill ffmpeg process: {}", e);
+            }
+            break;
+        }
         match stdout.read_exact(&mut frame_buffer) {
             Ok(_) => {
                 let mut slice_pixels = Vec::with_capacity((height * 4) as usize);

@@ -1,4 +1,6 @@
 use eframe::egui::{self, Color32, ColorImage};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
@@ -19,6 +21,7 @@ pub struct MyApp {
     spectrogram_slice_position: usize,
     about_window_open: bool,
     audio_info: Option<utils::AudioInfo>,
+    generation_cancel_token: Option<Arc<AtomicBool>>,
 }
 
 impl MyApp {
@@ -38,12 +41,17 @@ impl MyApp {
             spectrogram_slice_position: 0,
             about_window_open: false,
             audio_info,
+            generation_cancel_token: None,
         }
     }
 
     fn regenerate_spectrogram(&mut self, ctx: &egui::Context) {
         if self.input_path.is_none() {
             return;
+        }
+
+        if let Some(token) = &self.generation_cancel_token {
+            token.store(true, Ordering::Relaxed);
         }
 
         if self.settings.remember_settings {
@@ -56,7 +64,8 @@ impl MyApp {
         let (sender, receiver) = mpsc::channel();
         self.image_receiver = Some(receiver);
 
-        let (width, height) = if self.settings.custom_resolution {
+        let (width, height) = if self.settings.custom_resolution || self.settings.resize_with_window
+        {
             (self.settings.resolution[0], self.settings.resolution[1])
         } else {
             (500, 320)
@@ -114,6 +123,9 @@ impl MyApp {
         }
 
         let ctx_clone = ctx.clone();
+        let cancel_token = Arc::new(AtomicBool::new(false));
+        self.generation_cancel_token = Some(cancel_token.clone());
+
         thread::spawn(move || {
             if thread_settings.live_mode {
                 utils::stream_spectrogram_frames(
@@ -122,6 +134,7 @@ impl MyApp {
                     &thread_settings,
                     width,
                     height,
+                    cancel_token,
                 );
             } else {
                 let image = utils::generate_spectrogram_in_memory(
@@ -129,6 +142,7 @@ impl MyApp {
                     &thread_settings,
                     width,
                     height,
+                    cancel_token,
                 );
                 if let Some(img) = image {
                     sender.send(Some(img)).ok();
@@ -141,6 +155,27 @@ impl MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let mut trigger_regeneration_due_to_resize = false;
+        if self.settings.resize_with_window {
+            let inner_size = ctx
+                .input(|i| i.viewport().inner_rect)
+                .unwrap_or(egui::Rect::ZERO)
+                .size();
+
+            let new_width = (inner_size.x - 180.0).max(100.0) as u32;
+            let new_height = (inner_size.y - 128.0 - 39.0).max(100.0) as u32;
+
+            let new_res = [new_width, new_height];
+            if self.settings.resolution != new_res {
+                self.settings.resolution = new_res;
+                trigger_regeneration_due_to_resize = true;
+            }
+        }
+
+        if trigger_regeneration_due_to_resize {
+            self.regenerate_spectrogram(ctx);
+        }
+
         let use_custom_legend =
             self.settings.legend && (self.settings.custom_legend || self.settings.live_mode);
 
