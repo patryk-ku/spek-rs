@@ -40,8 +40,9 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            // .with_inner_size([800.0 + 282.0, 500.0 + 128.0 + 39.0])
-            .with_min_inner_size([800.0 + 282.0, 500.0 + 128.0 + 39.0]) // spectogram + legend, spectogram + legend + menu bar
+            // spectogram + legend, spectogram + legend + menu bar
+            .with_inner_size([500.0 + 180.0, 320.0 + 128.0 + 39.0])
+            .with_min_inner_size([500.0 + 180.0, 320.0 + 128.0 + 39.0])
             .with_resizable(true),
         ..Default::default()
     };

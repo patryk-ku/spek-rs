@@ -8,8 +8,8 @@ use imageproc::rect::Rect;
 
 pub const TOP_MARGIN: u32 = 64;
 pub const BOTTOM_MARGIN: u32 = 64;
-pub const LEFT_MARGIN: u32 = 141;
-pub const RIGHT_MARGIN: u32 = 141;
+pub const LEFT_MARGIN: u32 = 80;
+pub const RIGHT_MARGIN: u32 = 100;
 
 fn draw_time_scale(
     image: &mut RgbaImage,

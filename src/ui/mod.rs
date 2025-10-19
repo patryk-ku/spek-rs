@@ -59,7 +59,7 @@ impl MyApp {
         let (width, height) = if self.settings.custom_resolution {
             (self.settings.resolution[0], self.settings.resolution[1])
         } else {
-            (800, 500)
+            (500, 320)
         };
 
         let use_custom_legend =

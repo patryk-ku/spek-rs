@@ -216,7 +216,7 @@ impl Default for AppSettings {
             saturation: 1.0,
             split_channels: false,
             custom_resolution: false,
-            resolution: [800, 500],
+            resolution: [500, 320],
             horizontal: false,
             legend: true,
             live_mode: false,

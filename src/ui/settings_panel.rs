@@ -62,18 +62,6 @@ impl MyApp {
                     ui.add_space(4.0);
 
                     self.show_color_scheme_combo(ui, trigger_regeneration);
-
-                    ui.add_space(4.0);
-
-                    self.show_saturation_drag(ui, trigger_regeneration);
-
-                    ui.add_space(4.0);
-
-                    self.show_gain_drag(ui, trigger_regeneration);
-
-                    ui.add_space(4.0);
-
-                    self.show_custom_res_controls(ui, trigger_regeneration);
                 });
             });
         });
@@ -120,6 +108,20 @@ impl MyApp {
                         ui.separator();
                     }
 
+                    ui.add_enabled(
+                        false,
+                        egui::Checkbox::new(&mut dummy_false, "Resize with window"),
+                    );
+
+                    ui.add_enabled(
+                        false,
+                        egui::Checkbox::new(&mut dummy_false, "Save window size"),
+                    );
+
+                    self.show_custom_res_controls(ui, trigger_regeneration);
+
+                    ui.separator();
+
                     let has_multiple_channels = self
                         .audio_info
                         .as_ref()
@@ -148,10 +150,8 @@ impl MyApp {
                         *trigger_regeneration = true;
                     }
 
-                    ui.add_enabled(
-                        false,
-                        egui::Checkbox::new(&mut dummy_false, "Resize with window"),
-                    );
+                    self.show_gain_drag(ui, trigger_regeneration);
+                    self.show_saturation_drag(ui, trigger_regeneration);
 
                     if ui
                         .checkbox(&mut self.settings.live_mode, "Live mode (WIP)")
@@ -163,14 +163,14 @@ impl MyApp {
                     ui.separator();
 
                     if ui
-                        .checkbox(&mut self.settings.remember_settings, "Remember settings")
+                        .checkbox(&mut self.settings.remember_settings, "Save settings")
                         .changed()
                     {
                         self.settings.save();
                     }
 
                     if ui.button("Reset settings").clicked() {
-                        ui.close();
+                        // ui.close();
                         self.settings = AppSettings::default();
                         *trigger_regeneration = true;
                     }
@@ -254,8 +254,8 @@ impl MyApp {
 
     fn show_gain_drag(&mut self, ui: &mut egui::Ui, trigger_regeneration: &mut bool) {
         let gain_drag_value = egui::DragValue::new(&mut self.settings.gain)
-            .speed(1.0)
-            .range(1.0..=100.0);
+            .speed(0.1)
+            .range(0.0..=128.0);
         let gain_response = ui.add(gain_drag_value.prefix("Gain: "));
         if gain_response.drag_stopped() || gain_response.lost_focus() {
             *trigger_regeneration = true;
@@ -264,7 +264,7 @@ impl MyApp {
 
     fn show_custom_res_controls(&mut self, ui: &mut egui::Ui, trigger_regeneration: &mut bool) {
         if ui
-            .checkbox(&mut self.settings.custom_resolution, "Custom Res")
+            .checkbox(&mut self.settings.custom_resolution, "Custom size")
             .changed()
         {
             *trigger_regeneration = true;
@@ -272,26 +272,29 @@ impl MyApp {
 
         if self.settings.custom_resolution {
             ui.horizontal(|ui| {
+                ui.add_space(18.0);
                 let width_response = ui.add(
                     egui::DragValue::new(&mut self.settings.resolution[0])
                         .prefix("w: ")
-                        .suffix("px")
+                        .suffix(" px")
                         .speed(10.0)
                         .range(100.0..=7892.0),
                 );
-                ui.label("x");
+                if width_response.drag_stopped() || width_response.lost_focus() {
+                    *trigger_regeneration = true;
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.add_space(18.0);
                 let height_response = ui.add(
                     egui::DragValue::new(&mut self.settings.resolution[1])
                         .prefix("h: ")
-                        .suffix("px")
+                        .suffix(" px")
                         .speed(10.0)
                         .range(100.0..=7992.0),
                 );
-                if width_response.drag_stopped()
-                    || width_response.lost_focus()
-                    || height_response.drag_stopped()
-                    || height_response.lost_focus()
-                {
+                if height_response.drag_stopped() || height_response.lost_focus() {
                     *trigger_regeneration = true;
                 }
             });
