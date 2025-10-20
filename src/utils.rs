@@ -356,6 +356,20 @@ pub fn stream_spectrogram_frames(
     println!("Spectrogram generated in {:?}.", start.elapsed());
 }
 
+pub fn cycle_option<T: PartialEq + Clone>(current: T, values: &[T], up: bool) -> T {
+    let current_index = values.iter().position(|c| c == &current).unwrap_or(0);
+    let new_index = if up {
+        if current_index == 0 {
+            values.len() - 1
+        } else {
+            current_index - 1
+        }
+    } else {
+        (current_index + 1) % values.len()
+    };
+    values[new_index].clone()
+}
+
 pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
     if let Some(image) = image {
         if let Some(pictures_dir) = dirs::picture_dir() {

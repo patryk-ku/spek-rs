@@ -17,7 +17,9 @@ impl MyApp {
 
     fn show_file_buttons(&mut self, ui: &mut egui::Ui, trigger_regeneration: &mut bool) {
         ui.add_enabled_ui(!self.is_generating, |ui| {
-            if ui.button("Open File...").clicked() {
+            let open_button_clicked = ui.button("Open File...").clicked();
+            if open_button_clicked || self.trigger_open_file {
+                self.trigger_open_file = false;
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     self.input_path = Some(path.display().to_string());
                     self.audio_info =
@@ -27,7 +29,9 @@ impl MyApp {
             }
 
             if self.final_image.is_some() {
-                if ui.button("Save As...").clicked() {
+                let save_button_clicked = ui.button("Save As...").clicked();
+                if save_button_clicked || self.trigger_save_as {
+                    self.trigger_save_as = false;
                     if let Some(input_path) = &self.input_path {
                         crate::utils::save_image(&self.final_image, input_path);
                     }
@@ -42,6 +46,42 @@ impl MyApp {
         ui: &mut egui::Ui,
         trigger_regeneration: &mut bool,
     ) {
+        if self.trigger_split_channel {
+            self.trigger_split_channel = false;
+            let has_multiple_channels = self
+                .audio_info
+                .as_ref()
+                .map_or(false, |info| info.channels > 1);
+            if has_multiple_channels {
+                self.settings.split_channels = !self.settings.split_channels;
+                *trigger_regeneration = true;
+            }
+        }
+
+        if self.trigger_gain_up {
+            self.trigger_gain_up = false;
+            self.settings.gain -= 1.0;
+            *trigger_regeneration = true;
+        }
+
+        if self.trigger_gain_down {
+            self.trigger_gain_down = false;
+            self.settings.gain += 1.0;
+            *trigger_regeneration = true;
+        }
+
+        if self.trigger_saturation_up {
+            self.trigger_saturation_up = false;
+            self.settings.saturation -= 0.1;
+            *trigger_regeneration = true;
+        }
+
+        if self.trigger_saturation_down {
+            self.trigger_saturation_down = false;
+            self.settings.saturation += 0.1;
+            *trigger_regeneration = true;
+        }
+
         ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
             ui.horizontal(|ui| {
                 if self.final_image.is_none() && !self.is_generating && self.input_path.is_some() {
@@ -202,6 +242,7 @@ impl MyApp {
                     ui.separator();
 
                     if ui.button("Keybindings").clicked() {
+                        self.keybindings_window_open = true;
                         ui.close();
                     }
                     if ui.button("Help").clicked() {
@@ -216,6 +257,20 @@ impl MyApp {
     }
 
     fn show_scale_combo(&mut self, ui: &mut egui::Ui, trigger_regeneration: &mut bool) {
+        if self.trigger_scale_up {
+            self.trigger_scale_up = false;
+            self.settings.scale =
+                crate::utils::cycle_option(self.settings.scale, &SpectrogramScale::VALUES, true);
+            *trigger_regeneration = true;
+        }
+
+        if self.trigger_scale_down {
+            self.trigger_scale_down = false;
+            self.settings.scale =
+                crate::utils::cycle_option(self.settings.scale, &SpectrogramScale::VALUES, false);
+            *trigger_regeneration = true;
+        }
+
         let old_scale = self.settings.scale;
         egui::ComboBox::from_label("Scale:")
             .selected_text(self.settings.scale.to_string())
@@ -234,6 +289,27 @@ impl MyApp {
 
     fn show_win_func_combo(&mut self, ui: &mut egui::Ui, trigger_regeneration: &mut bool) {
         let old_win_func = self.settings.win_func;
+
+        if self.trigger_win_func_up {
+            self.trigger_win_func_up = false;
+            self.settings.win_func = crate::utils::cycle_option(
+                self.settings.win_func,
+                &SpectogramWinFunc::VALUES,
+                true,
+            );
+            *trigger_regeneration = true;
+        }
+
+        if self.trigger_win_func_down {
+            self.trigger_win_func_down = false;
+            self.settings.win_func = crate::utils::cycle_option(
+                self.settings.win_func,
+                &SpectogramWinFunc::VALUES,
+                false,
+            );
+            *trigger_regeneration = true;
+        }
+
         egui::ComboBox::from_label("F:")
             .selected_text(self.settings.win_func.to_string())
             .width(80.0)
@@ -256,6 +332,27 @@ impl MyApp {
 
     fn show_color_scheme_combo(&mut self, ui: &mut egui::Ui, trigger_regeneration: &mut bool) {
         let old_color_scheme = self.settings.color_scheme;
+
+        if self.trigger_palette_up {
+            self.trigger_palette_up = false;
+            self.settings.color_scheme = crate::utils::cycle_option(
+                self.settings.color_scheme,
+                &SpectrogramColorScheme::VALUES,
+                true,
+            );
+            *trigger_regeneration = true;
+        }
+
+        if self.trigger_palette_down {
+            self.trigger_palette_down = false;
+            self.settings.color_scheme = crate::utils::cycle_option(
+                self.settings.color_scheme,
+                &SpectrogramColorScheme::VALUES,
+                false,
+            );
+            *trigger_regeneration = true;
+        }
+
         egui::ComboBox::from_label("Color:")
             .selected_text(self.settings.color_scheme.to_string())
             .width(80.0)

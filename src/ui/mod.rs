@@ -10,6 +10,7 @@ use crate::utils;
 
 mod settings_panel;
 mod window_about;
+mod window_keybindings;
 
 pub struct MyApp {
     texture: Option<egui::TextureHandle>,
@@ -20,8 +21,24 @@ pub struct MyApp {
     image_receiver: Option<Receiver<Option<ColorImage>>>,
     spectrogram_slice_position: usize,
     about_window_open: bool,
+    keybindings_window_open: bool,
     audio_info: Option<utils::AudioInfo>,
     generation_cancel_token: Option<Arc<AtomicBool>>,
+
+    // Keybinding triggers
+    trigger_open_file: bool,
+    trigger_save_as: bool,
+    trigger_palette_up: bool,
+    trigger_palette_down: bool,
+    trigger_win_func_up: bool,
+    trigger_win_func_down: bool,
+    trigger_split_channel: bool,
+    trigger_scale_up: bool,
+    trigger_scale_down: bool,
+    trigger_gain_up: bool,
+    trigger_gain_down: bool,
+    trigger_saturation_up: bool,
+    trigger_saturation_down: bool,
 }
 
 impl MyApp {
@@ -44,8 +61,24 @@ impl MyApp {
             image_receiver: None,
             spectrogram_slice_position: 0,
             about_window_open: false,
+            keybindings_window_open: false,
             audio_info,
             generation_cancel_token: None,
+
+            // Keybinding triggers
+            trigger_open_file: false,
+            trigger_save_as: false,
+            trigger_palette_up: false,
+            trigger_palette_down: false,
+            trigger_win_func_up: false,
+            trigger_win_func_down: false,
+            trigger_split_channel: false,
+            trigger_scale_up: false,
+            trigger_scale_down: false,
+            trigger_gain_up: false,
+            trigger_gain_down: false,
+            trigger_saturation_up: false,
+            trigger_saturation_down: false,
         }
     }
 
@@ -159,6 +192,63 @@ impl MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.input(|i| {
+            if i.key_pressed(egui::Key::Escape) {
+                // https://github.com/emilk/egui/discussions/4103#discussioncomment-9225022
+                let ctx = ctx.clone();
+                std::thread::spawn(move || {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                });
+            }
+
+            if !self.is_generating {
+                if i.modifiers.ctrl && i.key_pressed(egui::Key::O) {
+                    self.trigger_open_file = true;
+                }
+                if i.modifiers.ctrl && i.key_pressed(egui::Key::S) {
+                    self.trigger_save_as = true;
+                }
+                if i.key_pressed(egui::Key::P) {
+                    if i.modifiers.shift {
+                        self.trigger_palette_up = true;
+                    } else {
+                        self.trigger_palette_down = true;
+                    }
+                }
+                if i.key_pressed(egui::Key::F) {
+                    if i.modifiers.shift {
+                        self.trigger_win_func_up = true;
+                    } else {
+                        self.trigger_win_func_down = true;
+                    }
+                }
+                if i.key_pressed(egui::Key::C) {
+                    self.trigger_split_channel = true;
+                }
+                if i.key_pressed(egui::Key::A) {
+                    if i.modifiers.shift {
+                        self.trigger_scale_up = true;
+                    } else {
+                        self.trigger_scale_down = true;
+                    }
+                }
+                if i.key_pressed(egui::Key::G) {
+                    if i.modifiers.shift {
+                        self.trigger_gain_up = true;
+                    } else {
+                        self.trigger_gain_down = true;
+                    }
+                }
+                if i.key_pressed(egui::Key::T) {
+                    if i.modifiers.shift {
+                        self.trigger_saturation_up = true;
+                    } else {
+                        self.trigger_saturation_down = true;
+                    }
+                }
+            }
+        });
+
         let mut trigger_regeneration_due_to_resize = false;
         if self.settings.resize_with_window {
             let inner_size = ctx
@@ -360,6 +450,10 @@ impl eframe::App for MyApp {
 
         if self.about_window_open {
             window_about::show(ctx, &mut self.about_window_open);
+        }
+
+        if self.keybindings_window_open {
+            window_keybindings::show(ctx, &mut self.keybindings_window_open);
         }
     }
 }
