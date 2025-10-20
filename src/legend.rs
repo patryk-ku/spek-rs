@@ -455,7 +455,7 @@ pub fn draw_legend(
     );
 
     // Draw app name and version in top-right corner
-    let app_info = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    let app_info = format!("{} v{}", "Spek-rs", env!("CARGO_PKG_VERSION"));
     let (text_width, _) = imageproc::drawing::text_size(font_small, &font, &app_info);
     draw_text_mut(
         &mut image,
