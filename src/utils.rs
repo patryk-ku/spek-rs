@@ -166,6 +166,7 @@ pub fn generate_spectrogram_in_memory(
             if let Err(e) = cmd.kill() {
                 eprintln!("Failed to kill ffmpeg process: {}", e);
             }
+            let _ = cmd.wait();
             return None;
         }
 
@@ -312,6 +313,7 @@ pub fn stream_spectrogram_frames(
             if let Err(e) = cmd.kill() {
                 eprintln!("Failed to kill ffmpeg process: {}", e);
             }
+            let _ = cmd.wait();
             break;
         }
         match stdout.read_exact(&mut frame_buffer) {
