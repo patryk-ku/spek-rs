@@ -12,10 +12,11 @@ jobs:
             matrix:
                 include:
                     - os: ubuntu-latest
-                    - os: macos-13
+                    - os: macos-15-intel
                       target: spek-rs-macos-amd64.app # Intel macOS
-                    - os: macos-14
+                    - os: macos-latest
                       target: spek-rs-macos-arm64.app # Apple Silicon macOS
+                    - os: windows-latest
 
         permissions:
             contents: write
@@ -65,12 +66,19 @@ jobs:
                   cp assets/icon.png icon.png
                   cargo appimage
 
-            - name: Create .app package (macOS only)
+            - name: Create macOS .app package
               if: runner.os == 'macOS'
               run: |
                   cargo install cargo-bundle
                   cargo bundle --release
                   mv target/release/bundle/osx/Spek-rs.app target/release/${{ matrix.target }}
+
+            - name: Create Windows installer
+              if: runner.os == 'Windows'
+              run: |
+                  cargo install cargo-bundle
+                  cargo bundle --release
+                  mv target/release/bundle/windows/Spek-rs.msi target/release/spek-rs.msi
 
             - name: Upload binaries and packages
               uses: actions/upload-artifact@v4
@@ -81,4 +89,5 @@ jobs:
                       packaging/spek-rs.rpm
                       target/appimage/spek-rs.AppImage
                       target/release/${{ matrix.target }}
+                      target/release/spek-rs.msi
                   if-no-files-found: ignore
