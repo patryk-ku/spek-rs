@@ -267,10 +267,7 @@ impl eframe::App for MyApp {
 
         let mut trigger_regeneration_due_to_resize = false;
         if self.settings.resize_with_window {
-            let inner_size = ctx
-                .input(|i| i.viewport().inner_rect)
-                .unwrap_or(egui::Rect::ZERO)
-                .size();
+            let inner_size = ctx.available_rect().size();
 
             let new_width = (inner_size.x - 180.0).max(100.0) as u32;
             let new_height = (inner_size.y - 128.0 - 39.0).max(100.0) as u32;
@@ -337,10 +334,7 @@ impl eframe::App for MyApp {
 
                         // Save window size after live spectrogram is ready
                         if self.settings.save_window_size {
-                            let inner_size = ctx
-                                .input(|i| i.viewport().inner_rect)
-                                .unwrap_or(egui::Rect::ZERO)
-                                .size();
+                            let inner_size = ctx.available_rect().size();
                             self.settings.window_size = [inner_size.x, inner_size.y];
                             self.settings.save();
                         }
@@ -384,10 +378,7 @@ impl eframe::App for MyApp {
 
                             // Save window size after spectrogram is ready
                             if self.settings.save_window_size {
-                                let inner_size = ctx
-                                    .input(|i| i.viewport().inner_rect)
-                                    .unwrap_or(egui::Rect::ZERO)
-                                    .size();
+                                let inner_size = ctx.available_rect().size();
                                 self.settings.window_size = [inner_size.x, inner_size.y];
                                 self.settings.save();
                             }
