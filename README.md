@@ -1,21 +1,26 @@
-# spek-rs
-Spek alternative written in Rust. The program is used to create spectrograms of audio files. It uses FFmpeg for audio decoding (like the original) and [egui](https://github.com/emilk/egui) for the GUI.
+<p align="center"><img src="assets/icon.png" alt="MarkText" width="100" height="100"></p>
+
+<h1 align="center">Spek-rs</h1>
+
+Acoustic spectrum analyser. Spek alternative written in Rust. The program is used to create spectrograms of audio files. It uses FFmpeg for audio decoding, like the original.
 
 <p align="center">
 <img src=".github/assets/screenshot.png"/>
 </p>
 
-The main difference from the original is that the legend around the spectrogram is also created by FFmpeg, which makes it look a bit worse. So, basically, this program is a simple GUI for FFmpeg's spectrogram generation feature. I built this since the original Spek appears to be unmaintained, and installing it from the AUR was often problematic.
+This application is a GUI for ffmpeg's showspectrumpic function, which allows you to generate spectrograms from audio files. For a detailed explanation of the available options and their functionalities, the best place to check is the official ffmpeg documentation: https://ffmpeg.org/ffmpeg-filters.html#showspectrumpic
 
-## TODO
-- [x] Save and load settings from a configuration file
-- [x] Draw captions at the top of the image like original
-- [x] Custom legend rendering
-- [x] Add keyboard shortcuts
+I built this because the original Spek appears unmaintained, and installing it on rolling release distributions like Arch Linux often caused dependency issues with older libraries.
+
+## Changelog
+
+[CHANGELOG.md](CHANGELOG.md)
 
 ## Credits
 
 This project is heavily inspired by the original [Spek](https://www.spek.cc/).
+
+The GUI is built using [egui](https://github.com/emilk/egui).
 
 It includes the [DejaVu Sans](https://dejavu-fonts.github.io/) font, which is distributed under its own license, see [LICENSE-DejaVuFonts.txt](./assets/LICENSE-DejaVuFonts.txt) for details.
 
