@@ -29,7 +29,7 @@ jobs:
                   echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
                   sudo add-apt-repository -y universe
                   sudo apt-get -y update
-                  sudo apt-get install -y libdbus-1-dev pkg-config nfpm libfuse2
+                  sudo apt-get install -y libdbus-1-dev pkg-config nfpm libfuse2 libfontconfig1-dev
               env:
                   DEBIAN_FRONTEND: noninteractive
 
