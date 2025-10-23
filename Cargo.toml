@@ -1,9 +1,9 @@
 [package]
 name = "spek-rs"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 authors = ["Patryk Kurdziel <patryk.kurdziel@protonmail.com>"]
-description = "Spek alternative written in Rust."
+description = "Acoustic spectrum analyser. Spek alternative written in Rust."
 repository = "https://github.com/patryk-ku/spek-rs"
 license = "MIT"
 
@@ -24,3 +24,16 @@ font-kit = "0.14.3"
 strip = true
 codegen-units = 1
 panic = "abort"
+
+[package.metadata.appimage]
+auto_link = true
+auto_link_exclude_list = [
+    "ld-linux-x86-64.so*",
+    "libc.so*",
+    "libm.so*",
+    "libgcc_s.so*",
+    "libz.so*",
+    "libexpat.so*",
+    "libbrotlidec.so*",
+    "libbrotlicommon.so*",
+]

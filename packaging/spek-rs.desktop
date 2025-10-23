@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Spek-rs
+Exec=/usr/bin/spek-rs %F
+Icon=spek-rs
+Categories=Utility;
+Comment=Acoustic spectrum analyser. Spek alternative written in Rust.
+Terminal=false
+MimeType=audio/*;video/*;
