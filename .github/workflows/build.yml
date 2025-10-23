@@ -78,7 +78,7 @@ jobs:
               run: |
                   cargo install cargo-bundle
                   cargo bundle --release
-                  mv target/release/bundle/windows/Spek-rs.msi target/release/spek-rs.msi
+                  move "target/release/bundle/windows/Spek-rs.msi" "target/release/spek-rs.msi"
 
             - name: Upload binaries and packages
               uses: actions/upload-artifact@v4
