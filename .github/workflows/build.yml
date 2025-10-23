@@ -79,7 +79,7 @@ jobs:
               if: runner.os == 'Windows'
               run: |
                   cargo install cargo-wix
-                  cargo wix --no-build --target-bin-dir target\release --output target\release\spek-rs.msi packaging\wix\main.wxs
+                  cargo wix --no-build --target-bin-dir target\release --output target\release\spek-rs.msi --include packaging\wix\main.wxs
                   ren "target\release\spek-rs.exe" "spek-portable.exe"
 
             - name: Upload binaries and packages
