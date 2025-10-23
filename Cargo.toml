@@ -37,3 +37,10 @@ auto_link_exclude_list = [
     "libbrotlidec.so*",
     "libbrotlicommon.so*",
 ]
+
+[package.metadata.bundle]
+name = "Spek-rs"
+identifier = "com.patrykku.spekrs"
+icon = ["assets/icon.png"]
+copyright = "Copyright (c) Patryk Kurdziel 2025. All rights reserved."
+category = "Utility"
