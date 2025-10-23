@@ -11,12 +11,12 @@ jobs:
         strategy:
             matrix:
                 include:
-                    # - os: ubuntu-latest
-                    #   target: spek-linux
-                    # - os: macos-15-intel
-                    #   target: spek-rs-macos-amd64.app # Intel macOS
-                    # - os: macos-latest
-                    #   target: spek-rs-macos-arm64.app # Apple Silicon macOS
+                    - os: ubuntu-latest
+                      target: spek-linux
+                    - os: macos-15-intel
+                      target: spek-rs-macos-amd64.app # Intel macOS
+                    - os: macos-latest
+                      target: spek-rs-macos-arm64.app # Apple Silicon macOS
                     - os: windows-latest
                       target: spek-windows
 
@@ -80,7 +80,7 @@ jobs:
               run: |
                   cargo install cargo-wix
                   cargo wix --no-build --target-bin-dir target\release --output target\release\spek-rs.msi --include packaging\wix\main.wxs --nocapture
-                  ren "target\release\spek-rs.exe" "spek-portable.exe"
+                  ren "target\release\spek-rs.exe" "spek-rs-portable.exe"
 
             - name: Upload binaries and packages
               uses: actions/upload-artifact@v4
@@ -92,5 +92,5 @@ jobs:
                       target/appimage/spek-rs.AppImage
                       target/release/${{ matrix.target }}
                       target\release\spek-rs.msi
-                      target\release\spek-portable.exe
+                      target\release\spek-rs-portable.exe
                   if-no-files-found: ignore
