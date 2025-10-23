@@ -53,6 +53,18 @@ pub fn show(ctx: &egui::Context, is_open: &mut bool) {
                         ui.label("ESC");
                         ui.label("Close Application");
                         ui.end_row();
+
+                        ui.label("F1");
+                        ui.label("Open Help");
+                        ui.end_row();
+
+                        ui.label("F2");
+                        ui.label("Open Keybindings");
+                        ui.end_row();
+
+                        ui.label("F3");
+                        ui.label("Open About");
+                        ui.end_row();
                     });
             });
         });

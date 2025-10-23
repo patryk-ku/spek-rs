@@ -64,6 +64,7 @@ fn main() -> eframe::Result {
         options,
         Box::new(move |_cc| {
             egui_extras::install_image_loaders(&_cc.egui_ctx);
+            // _cc.egui_ctx.set_theme(egui::Theme::Light);
             _cc.egui_ctx.set_theme(egui::Theme::Dark);
             Ok(Box::new(MyApp::new(None, input_path, app_settings)))
         }),

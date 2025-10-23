@@ -148,6 +148,7 @@ impl MyApp {
                                 .on_hover_text("Customize custom legend appearance.")
                                 .clicked()
                             {
+                                self.legend_settings_window_open = true;
                                 ui.close();
                             }
                         }
@@ -246,6 +247,7 @@ impl MyApp {
                         ui.close();
                     }
                     if ui.button("Help").clicked() {
+                        self.help_window_open = true;
                         ui.close();
                     }
                     if ui.button("About").clicked() {

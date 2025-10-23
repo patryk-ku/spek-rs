@@ -1,5 +1,7 @@
 use eframe::egui;
 
+const ICON: &[u8] = include_bytes!("../../assets/icon.png");
+
 pub fn show(ctx: &egui::Context, is_open: &mut bool) {
     egui::Window::new("About Spek-rs")
         .open(is_open)
@@ -7,10 +9,15 @@ pub fn show(ctx: &egui::Context, is_open: &mut bool) {
         .default_pos(ctx.content_rect().center())
         .resizable(false)
         .collapsible(false)
-        .min_width(280.0)
-        .max_width(280.0)
+        .min_width(320.0)
+        .max_width(320.0)
         .show(ctx, |ui| {
             ui.vertical_centered(|ui| {
+                let image = egui::Image::from_bytes("bytes://icon.png", ICON).max_width(128.0);
+                ui.add_space(10.0);
+                ui.add(image);
+                ui.add_space(10.0);
+
                 ui.heading(format!("Spek-rs v{}", env!("CARGO_PKG_VERSION")));
                 ui.add_space(10.0);
                 ui.label("Copyright © 2025 Patryk Kurdziel");

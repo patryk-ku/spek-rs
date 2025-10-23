@@ -10,7 +10,9 @@ use crate::utils;
 
 mod settings_panel;
 mod window_about;
+mod window_help;
 mod window_keybindings;
+mod window_legend_settings;
 
 pub struct MyApp {
     texture: Option<egui::TextureHandle>,
@@ -22,6 +24,8 @@ pub struct MyApp {
     spectrogram_slice_position: usize,
     about_window_open: bool,
     keybindings_window_open: bool,
+    help_window_open: bool,
+    legend_settings_window_open: bool,
     audio_info: Option<utils::AudioInfo>,
     generation_cancel_token: Option<Arc<AtomicBool>>,
 
@@ -62,6 +66,8 @@ impl MyApp {
             spectrogram_slice_position: 0,
             about_window_open: false,
             keybindings_window_open: false,
+            help_window_open: false,
+            legend_settings_window_open: false,
             audio_info,
             generation_cancel_token: None,
 
@@ -202,6 +208,16 @@ impl eframe::App for MyApp {
             }
 
             if !self.is_generating {
+                if i.key_pressed(egui::Key::F1) {
+                    self.help_window_open = !self.help_window_open;
+                }
+                if i.key_pressed(egui::Key::F2) {
+                    self.keybindings_window_open = !self.keybindings_window_open;
+                }
+                if i.key_pressed(egui::Key::F3) {
+                    self.about_window_open = !self.about_window_open;
+                }
+
                 if i.modifiers.ctrl && i.key_pressed(egui::Key::O) {
                     self.trigger_open_file = true;
                 }
@@ -454,6 +470,14 @@ impl eframe::App for MyApp {
 
         if self.keybindings_window_open {
             window_keybindings::show(ctx, &mut self.keybindings_window_open);
+        }
+
+        if self.help_window_open {
+            window_help::show(ctx, &mut self.help_window_open);
+        }
+
+        if self.legend_settings_window_open {
+            window_legend_settings::show(ctx, &mut self.legend_settings_window_open);
         }
     }
 }
