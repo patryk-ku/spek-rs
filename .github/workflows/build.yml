@@ -11,12 +11,12 @@ jobs:
         strategy:
             matrix:
                 include:
-                    - os: ubuntu-latest
-                      target: spek-linux
-                    - os: macos-15-intel
-                      target: spek-rs-macos-amd64.app # Intel macOS
-                    - os: macos-latest
-                      target: spek-rs-macos-arm64.app # Apple Silicon macOS
+                    # - os: ubuntu-latest
+                    #   target: spek-linux
+                    # - os: macos-15-intel
+                    #   target: spek-rs-macos-amd64.app # Intel macOS
+                    # - os: macos-latest
+                    #   target: spek-rs-macos-arm64.app # Apple Silicon macOS
                     - os: windows-latest
                       target: spek-windows
 
