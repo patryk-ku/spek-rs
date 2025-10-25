@@ -1,9 +1,11 @@
 use crate::settings::AppSettings;
 use eframe::egui::ColorImage;
+use ffmpeg_sidecar::command::FfmpegCommand;
+use ffmpeg_sidecar::ffprobe::ffprobe_path;
 use image::{GenericImageView, RgbaImage};
 use std::io::{ErrorKind, Read};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::sync::mpsc::Sender;
 use std::time::Instant;
 
@@ -25,7 +27,7 @@ pub fn rgba_image_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
 
 /// Retrieves audio information (duration, sample rate, format, and bit depth) using ffprobe.
 pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
-    let output = Command::new("ffprobe")
+    let output = Command::new(ffprobe_path())
         .args([
             "-v",
             "error",
@@ -78,7 +80,11 @@ pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
     }
 
     let format = if let Some(f) = format_name {
-        if f.contains(',') { codec_name } else { Some(f) }
+        if f.contains(',') {
+            codec_name
+        } else {
+            Some(f)
+        }
     } else {
         codec_name
     };
@@ -133,22 +139,21 @@ pub fn generate_spectrogram_in_memory(
         orientation
     );
 
-    let mut cmd = match Command::new("ffmpeg")
-        .args([
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            input_path,
-            "-lavfi",
-            &lavfi_filter,
-            "-f",
-            "image2pipe",
-            "-",
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let mut cmd_builder = FfmpegCommand::new();
+    cmd_builder.args([
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        input_path,
+        "-lavfi",
+        &lavfi_filter,
+        "-f",
+        "image2pipe",
+        "-",
+    ]);
+
+    let mut cmd = match cmd_builder.spawn() // direct spawn
     {
         Ok(cmd) => cmd,
         Err(e) => {
@@ -157,7 +162,7 @@ pub fn generate_spectrogram_in_memory(
         }
     };
 
-    let mut stdout = cmd.stdout.take().unwrap();
+    let mut stdout = cmd.take_stdout().unwrap();
     let mut buffer = Vec::new();
     let mut read_buf = [0; 4096]; // 4KB buffer
 
@@ -173,7 +178,7 @@ pub fn generate_spectrogram_in_memory(
         match stdout.read(&mut read_buf) {
             Ok(0) => break, // EOF
             Ok(n) => buffer.extend_from_slice(&read_buf[..n]),
-            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             Err(e) => {
                 eprintln!("Failed to read ffmpeg stdout: {}", e);
                 if let Err(e) = cmd.kill() {
@@ -194,7 +199,7 @@ pub fn generate_spectrogram_in_memory(
 
     if !status.success() {
         let mut stderr_output = String::new();
-        if let Some(mut stderr) = cmd.stderr.take() {
+        if let Some(mut stderr) = cmd.take_stderr() {
             if stderr.read_to_string(&mut stderr_output).is_ok() {
                 eprintln!("ffmpeg error:\n{}", stderr_output);
             }
@@ -267,27 +272,25 @@ pub fn stream_spectrogram_frames(
         "vertical", // orientation
     );
 
-    let mut cmd = match Command::new("ffmpeg")
-        .args([
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            input_path,
-            "-lavfi",
-            &lavfi_filter,
-            "-r",
-            &fps.to_string(),
-            "-f",
-            "rawvideo",
-            "-pix_fmt",
-            "rgba",
-            "-",
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
+    let mut cmd_builder = FfmpegCommand::new();
+    cmd_builder.args([
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        input_path,
+        "-lavfi",
+        &lavfi_filter,
+        "-r",
+        &fps.to_string(),
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgba",
+        "-",
+    ]);
+
+    let mut cmd = match cmd_builder.spawn() {
         Ok(cmd) => cmd,
         Err(e) => {
             eprintln!("Failed to spawn ffmpeg: {}", e);
@@ -295,7 +298,7 @@ pub fn stream_spectrogram_frames(
         }
     };
 
-    let mut stdout = cmd.stdout.take().unwrap();
+    let mut stdout = cmd.take_stdout().unwrap();
     let frame_size = (temp_width * height * 4) as usize;
     let mut frame_buffer = vec![0; frame_size];
 
@@ -346,7 +349,7 @@ pub fn stream_spectrogram_frames(
     if let Ok(status) = cmd.wait() {
         if !status.success() {
             let mut stderr_output = String::new();
-            if let Some(mut stderr) = cmd.stderr.take() {
+            if let Some(mut stderr) = cmd.take_stderr() {
                 if stderr.read_to_string(&mut stderr_output).is_ok() {
                     eprintln!("ffmpeg error:\n{}", stderr_output);
                 }

@@ -19,6 +19,7 @@ toml = "0.9"
 imageproc = { version = "0.25.0" }
 ab_glyph = { version = "0.2.3" }
 font-kit = "0.14.3"
+ffmpeg-sidecar = "2.2.0"
 
 [profile.release]
 strip = true

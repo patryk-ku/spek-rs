@@ -12,6 +12,9 @@ mod settings;
 mod utils;
 
 fn main() -> eframe::Result {
+    if let Err(e) = ffmpeg_sidecar::download::auto_download() {
+        eprintln!("Failed to download ffmpeg: {}", e);
+    }
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     println!("spek-rs v{}", env!("CARGO_PKG_VERSION"));
 
