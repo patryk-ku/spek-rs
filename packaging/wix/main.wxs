@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='windows-1252'?>
+<?xml version='1.0' encoding='windows-1252' ?>
 <!--
   Copyright (C) 2017 Christopher R. Field.
 
@@ -14,7 +14,6 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-
 <!--
   The "cargo wix" subcommand provides a variety of predefined variables available
   for customization of this template. The values for each variable are set at
@@ -43,145 +42,189 @@
                       "Major.Minor.Fix" semantic versioning number of the Rust
                       package.
 -->
-
 <!--
   Please do not remove these pre-processor If-Else blocks. These are used with
   the `cargo wix` subcommand to automatically determine the installation
   destination for 32-bit versus 64-bit installers. Removal of these lines will
   cause installation errors.
 -->
-<?if $(sys.BUILDARCH) = x64 or $(sys.BUILDARCH) = arm64 ?>
-    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
-<?else ?>
-    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
-<?endif ?>
-
+<?if $(sys.BUILDARCH) = x64 or $(sys.BUILDARCH) = arm64?>
+<?define PlatformProgramFilesFolder = "ProgramFiles64Folder"?>
+<?else?>
+<?define PlatformProgramFilesFolder = "ProgramFilesFolder"?>
+<?endif?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
 
-    <Product
-        Id='*'
-        Name='spek-rs'
-        UpgradeCode='FAB38AA1-2D81-481A-928E-69492AC68766'
-        Manufacturer='Patryk Kurdziel'
-        Language='1033'
-        Codepage='1252'
-        Version='$(var.Version)'>
+  <Product
+		Id='*'
+		Name='spek-rs'
+		UpgradeCode='FAB38AA1-2D81-481A-928E-69492AC68766'
+		Manufacturer='Patryk Kurdziel'
+		Language='1033'
+		Codepage='1252'
+		Version='$(var.Version)'
+	>
 
-        <Package Id='*'
-            Keywords='Installer'
-            Description='Acoustic spectrum analyser. Spek alternative written in Rust.'
-            Manufacturer='Patryk Kurdziel'
-            InstallerVersion='450'
-            Languages='1033'
-            Compressed='yes'
-            InstallScope='perMachine'
-            SummaryCodepage='1252'
-            />
+    <Package
+			Id='*'
+			Keywords='Installer'
+			Description='Acoustic spectrum analyser. Spek alternative written in Rust.'
+			Manufacturer='Patryk Kurdziel'
+			InstallerVersion='450'
+			Languages='1033'
+			Compressed='yes'
+			InstallScope='perMachine'
+			SummaryCodepage='1252'
+		/>
 
-        <MajorUpgrade
-            Schedule='afterInstallInitialize'
-            DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
+    <MajorUpgrade
+			Schedule='afterInstallInitialize'
+			DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'
+		/>
 
-        <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='spek-rs Installation'/>
+    <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1' />
+    <Property Id='DiskPrompt' Value='spek-rs Installation' />
 
-        <Directory Id='TARGETDIR' Name='SourceDir'>
-            <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='spek-rs'>
-                    <!--
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
+        <Directory Id='APPLICATIONFOLDER' Name='spek-rs'>
+          <!--
                       Disabling the license sidecar file in the installer is a two step process:
 
                       1. Comment out or remove the `Component` tag along with its contents.
                       2. Comment out or remove the `ComponentRef` tag with the "License" Id
                          attribute value further down in this file.
                     -->
-                    <Component Id='License' Guid='*'>
-                        <File Id='LicenseFile'
-                            DiskId='1'
-                            Source='packaging\wix\License.rtf'
-                            KeyPath='yes'/>
-                    </Component>
+          <Component Id='License' Guid='*'>
+            <File
+							Id='LicenseFile'
+							DiskId='1'
+							Source='packaging\wix\License.rtf'
+							KeyPath='yes'
+						/>
+          </Component>
 
-                    <Directory Id='Bin' Name='bin'>
-                        <Component Id='Path' Guid='845D4E17-D28E-41BB-B796-5483C11B6F90' KeyPath='yes'>
-                            <Environment
-                                Id='PATH'
-                                Name='PATH'
-                                Value='[Bin]'
-                                Permanent='no'
-                                Part='last'
-                                Action='set'
-                                System='yes'/>
-                        </Component>
-                        <Component Id='binary0' Guid='*'>
-                            <File
-                                Id='exe0'
-                                Name='spek-rs.exe'
-                                DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\spek-rs.exe'
-                                KeyPath='yes'/>
-                        </Component>
-                    </Directory>
-                </Directory>
-            </Directory>
+          <Directory Id='Bin' Name='bin'>
+            <Component
+							Id='Path'
+							Guid='845D4E17-D28E-41BB-B796-5483C11B6F90'
+							KeyPath='yes'
+						>
+              <Environment
+								Id='PATH'
+								Name='PATH'
+								Value='[Bin]'
+								Permanent='no'
+								Part='last'
+								Action='set'
+								System='yes'
+							/>
+            </Component>
+            <Component Id='binary0' Guid='*'>
+              <File
+								Id='exe0'
+								Name='spek-rs.exe'
+								DiskId='1'
+								Source='$(var.CargoTargetBinDir)\spek-rs.exe'
+								KeyPath='yes'
+							/>
+            </Component>
+          </Directory>
         </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="spek-rs">
+          <Component Id="ApplicationShortcut" Guid="*">
+            <Shortcut
+							Id="ApplicationStartMenuShortcut"
+							Name="spek-rs"
+							Description="Acoustic spectrum analyser"
+							Target="[APPLICATIONFOLDER]bin\spek-rs.exe"
+							Icon="ProductICO"
+							WorkingDirectory="APPLICATIONFOLDER"
+						/>
+            <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+            <RegistryValue
+							Root="HKCU"
+							Key="Software\Patryk Kurdziel\spek-rs"
+							Name="installed"
+							Type="integer"
+							Value="1"
+							KeyPath="yes"
+						/>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
 
-        <Feature
-            Id='Binaries'
-            Title='Application'
-            Description='Installs all binaries and the license.'
-            Level='1'
-            ConfigurableDirectory='APPLICATIONFOLDER'
-            AllowAdvertise='no'
-            Display='expand'
-            Absent='disallow'>
-            <!--
+    <Feature
+			Id='Binaries'
+			Title='Application'
+			Description='Installs all binaries and the license.'
+			Level='1'
+			ConfigurableDirectory='APPLICATIONFOLDER'
+			AllowAdvertise='no'
+			Display='expand'
+			Absent='disallow'
+		>
+      <!--
               Comment out or remove the following `ComponentRef` tag to remove
               the license sidecar file from the installer.
             -->
-            <ComponentRef Id='License'/>
+      <ComponentRef Id='License' />
 
-            <ComponentRef Id='binary0'/>
+      <ComponentRef Id='binary0' />
 
-            <Feature
-                Id='Environment'
-                Title='PATH Environment Variable'
-                Description='Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.'
-                Level='1'
-                Absent='allow'>
-                <ComponentRef Id='Path'/>
-            </Feature>
-        </Feature>
+      <ComponentRef Id='ApplicationShortcut' />
 
-        <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
+      <Feature
+				Id='Environment'
+				Title='PATH Environment Variable'
+				Description='Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.'
+				Level='1'
+				Absent='allow'
+			>
+        <ComponentRef Id='Path' />
+      </Feature>
+    </Feature>
+
+    <SetProperty
+			Id='ARPINSTALLLOCATION'
+			Value='[APPLICATIONFOLDER]'
+			After='CostFinalize'
+		/>
 
 
-        <!--
+    <!--
           Uncomment the following `Icon` and `Property` tags to change the product icon.
 
           The product icon is the graphic that appears in the Add/Remove
           Programs control panel for the application.
         -->
-        <Icon Id='ProductICO' SourceFile='assets\icon.ico'/>
-        <Property Id='ARPPRODUCTICON' Value='ProductICO' />
+    <Icon Id='ProductICO' SourceFile='assets\icon.ico' />
+    <Property Id='ARPPRODUCTICON' Value='ProductICO' />
 
-        <Property Id='ARPHELPLINK' Value='https://github.com/patryk-ku/spek-rs'/>
+    <Property Id='ARPHELPLINK' Value='https://github.com/patryk-ku/spek-rs' />
 
-        <UI>
-            <UIRef Id='WixUI_FeatureTree'/>
-            <!--<Publish Dialog='WelcomeDlg' Control='Next' Event='NewDialog' Value='CustomizeDlg' Order='99'>1</Publish>-->
-            <!--<Publish Dialog='CustomizeDlg' Control='Back' Event='NewDialog' Value='WelcomeDlg' Order='99'>1</Publish>-->
+    <UI>
+      <UIRef Id='WixUI_FeatureTree' />
+      <!--<Publish
+      Dialog='WelcomeDlg' Control='Next' Event='NewDialog' Value='CustomizeDlg'
+      Order='99'>1</Publish>-->
+      <!--<Publish
+      Dialog='CustomizeDlg' Control='Back' Event='NewDialog' Value='WelcomeDlg'
+      Order='99'>1</Publish>-->
 
-        </UI>
+    </UI>
 
-        <!--
+    <!--
           Disabling the EULA dialog in the installer requires commenting out
           or removing the following `WixVariable` tag
         -->
-        <WixVariable Id='WixUILicenseRtf' Value='packaging\wix\License.rtf'/>
+    <WixVariable Id='WixUILicenseRtf' Value='packaging\wix\License.rtf' />
 
 
-        <!--
+    <!--
           Uncomment the next `WixVariable` tag to customize the installer's
           Graphical User Interface (GUI) and add a custom banner image across
           the top of each screen. See the WiX Toolset documentation for details
@@ -189,10 +232,9 @@
 
           The banner BMP dimensions are 493 x 58 pixels.
         -->
-        <!--<WixVariable Id='WixUIBannerBmp' Value='wix\Banner.bmp'/>-->
+    <WixVariable Id='WixUIBannerBmp' Value='packaging\wix\Banner.bmp' />
 
-
-        <!--
+    <!--
           Uncomment the next `WixVariable` tag to customize the installer's
           Graphical User Interface (GUI) and add a custom image to the first
           dialog, or screen. See the WiX Toolset documentation for details about
@@ -200,8 +242,8 @@
 
           The dialog BMP dimensions are 493 x 312 pixels.
         -->
-        <!--<WixVariable Id='WixUIDialogBmp' Value='wix\Dialog.bmp'/>-->
+    <WixVariable Id='WixUIDialogBmp' Value='packaging\wix\Dialog.bmp' />
 
-    </Product>
+  </Product>
 
 </Wix>
