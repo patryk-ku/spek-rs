@@ -4,6 +4,8 @@ use ffmpeg_sidecar::command::FfmpegCommand;
 use ffmpeg_sidecar::ffprobe::ffprobe_path;
 use image::{GenericImageView, RgbaImage};
 use std::io::{ErrorKind, Read};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 use std::sync::mpsc::Sender;
@@ -27,20 +29,23 @@ pub fn rgba_image_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
 
 /// Retrieves audio information (duration, sample rate, format, and bit depth) using ffprobe.
 pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
-    let output = Command::new(ffprobe_path())
-        .args([
-            "-v",
-            "error",
-            "-select_streams",
-            "a:0",
-            "-show_entries",
-            "stream=duration,sample_rate,bits_per_sample,bits_per_raw_sample,codec_name,channels:format=format_name",
-            "-of",
-            "default=noprint_wrappers=1",
-            input_path,
-        ])
-        .output()
-        .ok()?;
+    let mut command = Command::new(ffprobe_path());
+    command.args([
+        "-v",
+        "error",
+        "-select_streams",
+        "a:0",
+        "-show_entries",
+        "stream=duration,sample_rate,bits_per_sample,bits_per_raw_sample,codec_name,channels:format=format_name",
+        "-of",
+        "default=noprint_wrappers=1",
+        input_path,
+    ]);
+
+    #[cfg(windows)]
+    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    let output = command.output().ok()?;
 
     if !output.status.success() {
         eprintln!("ffprobe error: {}", String::from_utf8_lossy(&output.stderr));
