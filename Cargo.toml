@@ -45,3 +45,6 @@ identifier = "com.patrykku.spekrs"
 icon = ["assets/icon.png"]
 copyright = "Copyright (c) Patryk Kurdziel 2025. All rights reserved."
 category = "Utility"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1.12"

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
+use image;
 use std::env;
 use std::process::{Command, Stdio};
 
@@ -45,6 +46,18 @@ fn main() -> eframe::Result {
 
     let options = {
         let mut viewport = egui::ViewportBuilder::default();
+        let icon = {
+            let image = image::load_from_memory(include_bytes!("../assets/icon.ico"))
+                .expect("Failed to load icon");
+            let rgba = image.to_rgba8();
+            let (width, height) = rgba.dimensions();
+            egui::IconData {
+                rgba: rgba.into_raw(),
+                width,
+                height,
+            }
+        };
+        viewport = viewport.with_icon(std::sync::Arc::new(icon));
 
         if app_settings.save_window_size {
             viewport = viewport.with_inner_size(app_settings.window_size);

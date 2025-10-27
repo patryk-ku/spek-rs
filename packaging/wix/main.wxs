@@ -57,7 +57,7 @@
 
 	<Product
 		Id='*'
-		Name='spek-rs'
+		Name='Spek-rs'
 		UpgradeCode='FAB38AA1-2D81-481A-928E-69492AC68766'
 		Manufacturer='Patryk Kurdziel'
 		Language='1033'
@@ -87,7 +87,7 @@
 
 		<Directory Id='TARGETDIR' Name='SourceDir'>
 			<Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-				<Directory Id='APPLICATIONFOLDER' Name='spek-rs'>
+				<Directory Id='APPLICATIONFOLDER' Name='Spek-rs'>
 					<Component Id='License' Guid='*'>
 						<File
 							Id='LicenseFile'
@@ -113,7 +113,7 @@
 								System='yes'
 							/>
 						</Component>
-						<Component Id='binary0' Guid='*'>
+						<Component Id='exe_and_associations' Guid='*'>
 							<File
 								Id='exe0'
 								Name='spek-rs.exe'
@@ -121,31 +121,41 @@
 								Source='$(var.CargoTargetBinDir)\spek-rs.exe'
 								KeyPath='yes'
 							/>
-						</Component>
-						<Component Id="FileAssociations" Guid="*">
+							<RegistryValue
+								Root="HKCR"
+								Key="Applications\spek-rs.exe"
+								Name="FriendlyAppName"
+								Value="Spek-rs"
+								Type="string"
+							/>
+							<RegistryValue
+								Root="HKCR"
+								Key="Applications\spek-rs.exe\DefaultIcon"
+								Value="[#exe0],0"
+								Type="string"
+							/>
 							<RegistryValue
 								Root="HKCR"
 								Key="spek_rs.audio"
 								Value="Audio File"
 								Type="string"
-								KeyPath="yes"
 							/>
 							<RegistryValue
 								Root="HKCR"
 								Key="spek_rs.audio\DefaultIcon"
-								Value="[APPLICATIONFOLDER]bin\spek-rs.exe"
+								Value="[#exe0],0"
 								Type="string"
 							/>
 							<RegistryValue
 								Root="HKCR"
 								Key="spek_rs.audio\shell\open"
-								Value="Open with spek-rs"
+								Value="Open with Spek-rs"
 								Type="string"
 							/>
 							<RegistryValue
 								Root="HKCR"
 								Key="spek_rs.audio\shell\open\command"
-								Value="&quot;[APPLICATIONFOLDER]bin\spek-rs.exe&quot; &quot;%1&quot;"
+								Value="&quot;[#exe0]&quot; &quot;%1&quot;"
 								Type="string"
 							/>
 
@@ -196,11 +206,11 @@
 				</Directory>
 			</Directory>
 			<Directory Id="ProgramMenuFolder">
-				<Directory Id="ApplicationProgramsFolder" Name="spek-rs">
+				<Directory Id="ApplicationProgramsFolder" Name="Spek-rs">
 					<Component Id="ApplicationShortcut" Guid="*">
 						<Shortcut
 							Id="ApplicationStartMenuShortcut"
-							Name="spek-rs"
+							Name="Spek-rs"
 							Description="Acoustic spectrum analyser"
 							Target="[APPLICATIONFOLDER]bin\spek-rs.exe"
 							Icon="ProductICO"
@@ -231,9 +241,8 @@
 			Absent='disallow'
 		>
 			<ComponentRef Id='License' />
-			<ComponentRef Id='binary0' />
+			<ComponentRef Id='exe_and_associations' />
 			<ComponentRef Id='ApplicationShortcut' />
-			<ComponentRef Id='FileAssociations' />
 
 			<Feature
 				Id='Environment'
