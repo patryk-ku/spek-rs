@@ -5,6 +5,9 @@ on:
         tags:
             - "**"
 
+permissions:
+    contents: write
+
 env:
     CARGO_TERM_COLOR: always
 
@@ -22,10 +25,6 @@ jobs:
                       target: spek-rs-macos-arm64.app # Apple Silicon macOS
                     - os: windows-latest
                       # target: spek-rs-windows
-
-        permissions:
-            contents: write
-
         steps:
             - uses: actions/checkout@v4
 
