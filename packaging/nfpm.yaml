@@ -10,7 +10,7 @@ description: |
 homepage: https://github.com/patryk-ku/spek-rs
 license: MIT
 
-depends:
+recommends:
     - ffmpeg
 
 contents:
@@ -23,5 +23,5 @@ contents:
 
 overrides:
     rpm:
-        depends:
+        recommends:
             - ffmpeg-free
