@@ -20,9 +20,9 @@ jobs:
                     - os: ubuntu-latest
                       # target: spek-rs-linux
                     - os: macos-15-intel
-                      target: spek-rs-macos-amd64.app # Intel macOS
+                      target: spek-rs-macos-amd64 # Intel macOS
                     - os: macos-latest
-                      target: spek-rs-macos-arm64.app # Apple Silicon macOS
+                      target: spek-rs-macos-arm64 # Apple Silicon macOS
                     - os: windows-latest
                       # target: spek-rs-windows
         steps:
@@ -75,7 +75,7 @@ jobs:
               run: |
                   cargo install cargo-bundle
                   cargo bundle --release
-                  mv target/release/bundle/osx/Spek-rs.app target/release/${{ matrix.target }}
+                  mv target/release/bundle/osx/Spek-rs.app target/release/${{ matrix.target }}.app
 
             - name: Create Windows installer
               if: runner.os == 'Windows'
@@ -105,8 +105,7 @@ jobs:
               if: runner.os == 'macOS'
               run: |
                   mkdir artifact
-                  mv target/release/${{ matrix.target }} artifact
-
+                  zip -r ./artifact/${{ matrix.target }}.zip target/release/${{ matrix.target }}.app
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
