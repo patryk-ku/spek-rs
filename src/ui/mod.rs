@@ -1,13 +1,15 @@
 use eframe::egui::{self, Color32, ColorImage};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
+use std::sync::Arc;
 use std::thread;
 
 use crate::legend;
 use crate::settings::AppSettings;
 use crate::utils;
 
+pub mod ffmpeg_setup;
+pub use ffmpeg_setup::FfmpegSetup;
 mod settings_panel;
 mod window_about;
 mod window_help;

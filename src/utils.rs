@@ -1,15 +1,17 @@
 use crate::settings::AppSettings;
+use dirs;
 use eframe::egui::ColorImage;
-use ffmpeg_sidecar::command::FfmpegCommand;
+use ffmpeg_sidecar::command::{ffmpeg_is_installed, FfmpegCommand};
 use ffmpeg_sidecar::ffprobe::ffprobe_path;
 use image::{GenericImageView, RgbaImage};
 use std::io::{ErrorKind, Read};
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::mpsc::Sender;
 use std::time::Instant;
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 #[derive(Clone, Debug)]
 pub struct AudioInfo {
@@ -29,7 +31,12 @@ pub fn rgba_image_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
 
 /// Retrieves audio information (duration, sample rate, format, and bit depth) using ffprobe.
 pub fn get_audio_info(input_path: &str) -> Option<AudioInfo> {
-    let mut command = Command::new(ffprobe_path());
+    let ffprobe = match ffmpeg_is_installed() {
+        true => ffprobe_path(),
+        false => get_ffmpeg_paths().ffprobe,
+    };
+
+    let mut command = Command::new(ffprobe);
     command.args([
         "-v",
         "error",
@@ -144,7 +151,11 @@ pub fn generate_spectrogram_in_memory(
         orientation
     );
 
-    let mut cmd_builder = FfmpegCommand::new();
+    let mut cmd_builder = match ffmpeg_is_installed() {
+        true => FfmpegCommand::new(),
+        false => FfmpegCommand::new_with_path(get_ffmpeg_paths().ffmpeg),
+    };
+
     cmd_builder.args([
         "-hide_banner",
         "-loglevel",
@@ -405,5 +416,34 @@ pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
                 }
             }
         }
+    }
+}
+
+pub struct FfmpegPaths {
+    pub directory: PathBuf,
+    pub ffmpeg: PathBuf,
+    pub ffprobe: PathBuf,
+}
+
+pub fn get_ffmpeg_paths() -> FfmpegPaths {
+    let directory = dirs::data_dir()
+        .expect("Failed to determine default data directory")
+        .join("spek-rs")
+        .join("ffmpeg");
+
+    #[cfg(windows)]
+    let ffmpeg = directory.join("ffmpeg.exe");
+    #[cfg(not(windows))]
+    let ffmpeg = directory.join("ffmpeg");
+
+    #[cfg(windows)]
+    let ffprobe = directory.join("ffprobe.exe");
+    #[cfg(not(windows))]
+    let ffprobe = directory.join("ffprobe");
+
+    FfmpegPaths {
+        directory,
+        ffmpeg,
+        ffprobe,
     }
 }
