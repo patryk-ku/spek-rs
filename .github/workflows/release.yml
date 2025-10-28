@@ -87,7 +87,7 @@ jobs:
 
             - name: GH Release (Linux)
               if: startsWith(github.ref, 'refs/tags/') || runner.os == 'Linux'
-              uses: softprops/action-gh-release@2.4.1
+              uses: softprops/action-gh-release@v2.4.1
               with:
                   body_path: .github/release-notes.md
                   files: |
@@ -98,7 +98,7 @@ jobs:
 
             - name: GH Release (Windows)
               if: startsWith(github.ref, 'refs/tags/') || runner.os == 'Windows'
-              uses: softprops/action-gh-release@2.4.1
+              uses: softprops/action-gh-release@v2.4.1
               with:
                   body_path: .github\release-notes.md
                   files: |
@@ -107,7 +107,7 @@ jobs:
 
             - name: GH Release (macOS)
               if: startsWith(github.ref, 'refs/tags/') || runner.os == 'macOS'
-              uses: softprops/action-gh-release@2.4.1
+              uses: softprops/action-gh-release@v2.4.1
               with:
                   body_path: .github/release-notes.md
                   files: |
