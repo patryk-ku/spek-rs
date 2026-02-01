@@ -1,3 +1,4 @@
-### v0.1.0
+### v0.2.0
 
-- Initial release.
+- Added Drag & Drop support for opening files (not supported on Linux Wayland due to library limitations).
+- Updated dependencies.
