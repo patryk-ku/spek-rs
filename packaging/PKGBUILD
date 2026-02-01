@@ -2,7 +2,7 @@
 
 _pkgname=spek-rs
 pkgname="${_pkgname}-bin"
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Acoustic spectrum analyser. Spek alternative written in Rust.'
 url="https://github.com/patryk-ku/${_pkgname}"
