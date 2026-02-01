@@ -267,6 +267,19 @@ impl eframe::App for MyApp {
             }
         });
 
+        // Handle file drop
+        if !self.is_generating {
+            let dropped_files = ctx.input(|i| i.raw.dropped_files.clone());
+            if !dropped_files.is_empty() {
+                if let Some(path) = dropped_files.first().and_then(|f| f.path.as_ref()) {
+                    let path_str = path.to_string_lossy().to_string();
+                    self.audio_info = utils::get_audio_info(&path_str);
+                    self.input_path = Some(path_str);
+                    self.regenerate_spectrogram(ctx);
+                }
+            }
+        }
+
         let mut trigger_regeneration_due_to_resize = false;
         if self.settings.resize_with_window {
             let inner_size = ctx.available_rect().size();

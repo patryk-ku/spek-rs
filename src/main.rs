@@ -45,7 +45,7 @@ fn main() -> eframe::Result {
     let app_settings = settings::AppSettings::load();
 
     let options = {
-        let mut viewport = egui::ViewportBuilder::default();
+        let mut viewport = egui::ViewportBuilder::default().with_drag_and_drop(true);
         let icon = {
             let image = image::load_from_memory(include_bytes!("../assets/icon.ico"))
                 .expect("Failed to load icon");
