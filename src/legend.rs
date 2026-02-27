@@ -18,7 +18,8 @@ fn draw_time_scale(
     duration: f64,
     font: &FontVec,
     scale: PxScale,
-    color: Rgba<u8>,
+    line_color: Rgba<u8>,
+    text_color: Rgba<u8>,
     is_top: bool,
     draw_labels: bool,
 ) {
@@ -38,7 +39,7 @@ fn draw_time_scale(
             (y_start, y_end, y_end + 8.0)
         };
 
-        draw_line_segment_mut(image, (x, y_start), (x, y_end), color);
+        draw_line_segment_mut(image, (x, y_start), (x, y_end), line_color);
 
         if draw_labels {
             let time_sec = duration * fraction as f64;
@@ -48,7 +49,7 @@ fn draw_time_scale(
             let (text_width, _) = imageproc::drawing::text_size(scale, font, &label);
             draw_text_mut(
                 image,
-                color,
+                text_color,
                 (x - text_width as f32 / 2.0) as i32,
                 label_y as i32,
                 scale,
@@ -66,7 +67,8 @@ fn draw_freq_scale(
     audio_info: AudioInfo,
     font: &FontVec,
     scale: PxScale,
-    color: Rgba<u8>,
+    line_color: Rgba<u8>,
+    text_color: Rgba<u8>,
     split_channels: bool,
 ) {
     let max_freq_khz = (audio_info.sample_rate / 2) as f32 / 1000.0;
@@ -91,12 +93,12 @@ fn draw_freq_scale(
             if !(draw_multi_channel && channel == 1 && i == num_ticks) {
                 // Left ticks
                 let x_end_left = LEFT_MARGIN as f32 - 1.0;
-                draw_line_segment_mut(image, (x_start_left, y), (x_end_left, y), color);
+                draw_line_segment_mut(image, (x_start_left, y), (x_end_left, y), line_color);
 
                 // Right ticks
                 let x_start_right = LEFT_MARGIN as f32 + spec_width as f32 + 1.0;
                 let x_end_right = x_start_right + 5.0;
-                draw_line_segment_mut(image, (x_start_right, y), (x_end_right, y), color);
+                draw_line_segment_mut(image, (x_start_right, y), (x_end_right, y), line_color);
             }
 
             // Freq labels
@@ -108,7 +110,7 @@ fn draw_freq_scale(
                 let (text_width, text_height) = imageproc::drawing::text_size(scale, font, &label);
                 draw_text_mut(
                     image,
-                    color,
+                    text_color,
                     (x_start_left - text_width as f32 - 8.0) as i32,
                     (y - text_height as f32 / 2.0) as i32 - 2,
                     scale,
@@ -379,20 +381,24 @@ pub fn draw_legend(
     saturation: f32,
     color_scheme: SpectrogramColorScheme,
     split_channels: bool,
+    bg_color_param: [u8; 3],
+    text_color_param: [u8; 3],
+    line_color_param: [u8; 3],
 ) -> RgbaImage {
     let final_width = spec_width + LEFT_MARGIN + RIGHT_MARGIN;
     let final_height = spec_height + TOP_MARGIN + BOTTOM_MARGIN;
 
-    // Create a new image with a black background
+    // Create a new image with a background color
     let mut image = RgbaImage::new(final_width, final_height);
+    let bg_color = Rgba([bg_color_param[0], bg_color_param[1], bg_color_param[2], 255u8]);
     draw_filled_rect_mut(
         &mut image,
         Rect::at(0, 0).of_size(final_width, final_height),
-        Rgba([0u8, 0u8, 0u8, 255u8]),
+        bg_color,
     );
 
     // Draw spec borders
-    let white = Rgba([255u8, 255u8, 255u8, 255u8]);
+    let line_color = Rgba([line_color_param[0], line_color_param[1], line_color_param[2], 255u8]);
     let top_left = (LEFT_MARGIN as f32 - 1.0, TOP_MARGIN as f32 - 1.0);
     let top_right = ((LEFT_MARGIN + spec_width) as f32, TOP_MARGIN as f32 - 1.0);
     let bottom_left = (LEFT_MARGIN as f32 - 1.0, (TOP_MARGIN + spec_height) as f32);
@@ -400,10 +406,10 @@ pub fn draw_legend(
         (LEFT_MARGIN + spec_width) as f32,
         (TOP_MARGIN + spec_height) as f32,
     );
-    draw_line_segment_mut(&mut image, top_left, top_right, white);
-    draw_line_segment_mut(&mut image, top_right, bottom_right, white);
-    draw_line_segment_mut(&mut image, bottom_right, bottom_left, white);
-    draw_line_segment_mut(&mut image, bottom_left, top_left, white);
+    draw_line_segment_mut(&mut image, top_left, top_right, line_color);
+    draw_line_segment_mut(&mut image, top_right, bottom_right, line_color);
+    draw_line_segment_mut(&mut image, bottom_right, bottom_left, line_color);
+    draw_line_segment_mut(&mut image, bottom_left, top_left, line_color);
 
     // Load font
     let font_data = include_bytes!("../assets/DejaVuLGCSans.ttf");
@@ -413,7 +419,7 @@ pub fn draw_legend(
     let font_normal = PxScale::from(16.0);
     let font_small = PxScale::from(13.0);
     let font_scales = PxScale::from(14.0);
-    let text_color = Rgba([255u8, 255u8, 255u8, 255u8]);
+    let text_color = Rgba([text_color_param[0], text_color_param[1], text_color_param[2], 255u8]);
 
     // Draw filename
     draw_text_with_fallback(
@@ -507,6 +513,7 @@ pub fn draw_legend(
             info.duration,
             &font,
             font_scales,
+            line_color,
             text_color,
             false, // bottom
             true,  // draw_labels
@@ -518,6 +525,7 @@ pub fn draw_legend(
             info.duration,
             &font,
             font_scales,
+            line_color,
             text_color,
             true,  // top
             false, // draw_labels
@@ -529,6 +537,7 @@ pub fn draw_legend(
             info,
             &font,
             font_scales,
+            line_color,
             text_color,
             split_channels,
         );

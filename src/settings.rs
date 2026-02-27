@@ -205,6 +205,9 @@ pub struct AppSettings {
     pub live_mode: bool,
     pub remember_settings: bool,
     pub custom_legend: bool,
+    pub custom_legend_bg_color: [u8; 3],
+    pub custom_legend_text_color: [u8; 3],
+    pub custom_legend_line_color: [u8; 3],
     pub save_window_size: bool,
     pub window_size: [f32; 2],
 }
@@ -226,6 +229,9 @@ impl Default for AppSettings {
             live_mode: false,
             remember_settings: false,
             custom_legend: true,
+            custom_legend_bg_color: [0, 0, 0],
+            custom_legend_text_color: [255, 255, 255],
+            custom_legend_line_color: [255, 255, 255],
             save_window_size: false,
             window_size: [500.0 + 180.0, 320.0 + 128.0 + 39.0],
         }

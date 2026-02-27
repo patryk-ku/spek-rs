@@ -143,6 +143,9 @@ impl MyApp {
                 self.settings.saturation,
                 self.settings.color_scheme,
                 self.settings.split_channels,
+                self.settings.custom_legend_bg_color,
+                self.settings.custom_legend_text_color,
+                self.settings.custom_legend_line_color,
             );
             let legend_color_image = utils::rgba_image_to_color_image(&legend_rgba);
 
@@ -483,7 +486,17 @@ impl eframe::App for MyApp {
         }
 
         if self.legend_settings_window_open {
-            window_legend_settings::show(ctx, &mut self.legend_settings_window_open);
+            let previous_bg = self.settings.custom_legend_bg_color;
+            let previous_text = self.settings.custom_legend_text_color;
+            let previous_line = self.settings.custom_legend_line_color;
+            
+            window_legend_settings::show(ctx, &mut self.legend_settings_window_open, &mut self.settings);
+            
+            if previous_bg != self.settings.custom_legend_bg_color ||
+               previous_text != self.settings.custom_legend_text_color ||
+               previous_line != self.settings.custom_legend_line_color {
+                self.regenerate_spectrogram(ctx);
+            }
         }
     }
 }
