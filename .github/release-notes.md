@@ -1,4 +1,4 @@
-### v0.2.0
+### Changes:
 
-- Added Drag & Drop support for opening files (not supported on Linux Wayland due to library limitations).
+- Added color settings for a custom legend.
 - Updated dependencies.
