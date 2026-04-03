@@ -1,4 +1,4 @@
 ### Changes:
 
-- Added color settings for a custom legend.
+- Fixed an issue where the spectrogram appeared blurry with fractional scaling enabled.
 - Updated dependencies.
