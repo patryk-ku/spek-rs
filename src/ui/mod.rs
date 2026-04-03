@@ -285,10 +285,17 @@ impl eframe::App for MyApp {
 
         let mut trigger_regeneration_due_to_resize = false;
         if self.settings.resize_with_window {
+            let pixels_per_point = ctx.pixels_per_point();
             let inner_size = ctx.available_rect().size();
 
-            let new_width = (inner_size.x - 180.0).max(100.0) as u32;
-            let new_height = (inner_size.y - 128.0 - 39.0).max(100.0) as u32;
+            // Legend margins in physical pixels (from src/legend.rs)
+            let margin_w = (legend::LEFT_MARGIN + legend::RIGHT_MARGIN) as f32;
+            let margin_h = (legend::TOP_MARGIN + legend::BOTTOM_MARGIN) as f32;
+            let top_bar_h = 39.0; // Height of the UI header in logical points
+
+            let new_width = ((inner_size.x * pixels_per_point) - margin_w).max(100.0) as u32;
+            let new_height =
+                (((inner_size.y - top_bar_h) * pixels_per_point) - margin_h).max(100.0) as u32;
 
             let new_res = [new_width, new_height];
             if self.settings.resolution != new_res {
@@ -442,12 +449,14 @@ impl eframe::App for MyApp {
 
                 if let Some(texture) = &self.texture {
                     let available_size = ui.available_size();
-                    let image_size = texture.size_vec2();
+                    let pixels_per_point = ctx.pixels_per_point();
+                    let image_size_physical = texture.size_vec2();
+                    let image_size_logical = image_size_physical / pixels_per_point;
 
-                    let image_aspect = image_size.x / image_size.y;
+                    let image_aspect = image_size_physical.x / image_size_physical.y;
                     let available_aspect = available_size.x / available_size.y;
 
-                    let new_size = if image_aspect > available_aspect {
+                    let fit_size = if image_aspect > available_aspect {
                         // Fit to width
                         egui::vec2(available_size.x, available_size.x / image_aspect)
                     } else {
@@ -456,10 +465,11 @@ impl eframe::App for MyApp {
                     };
 
                     ui.centered_and_justified(|ui| {
-                        if self.settings.custom_resolution {
-                            ui.image((texture.id(), new_size));
+                        if self.settings.custom_resolution || self.settings.resize_with_window {
+                            ui.image((texture.id(), fit_size));
                         } else {
-                            ui.add(egui::Image::from_texture(texture));
+                            // Use logical size to avoid oversized images on HiDPI
+                            ui.image((texture.id(), image_size_logical));
                         }
                     });
                 } else if !self.is_generating {
@@ -489,12 +499,17 @@ impl eframe::App for MyApp {
             let previous_bg = self.settings.custom_legend_bg_color;
             let previous_text = self.settings.custom_legend_text_color;
             let previous_line = self.settings.custom_legend_line_color;
-            
-            window_legend_settings::show(ctx, &mut self.legend_settings_window_open, &mut self.settings);
-            
-            if previous_bg != self.settings.custom_legend_bg_color ||
-               previous_text != self.settings.custom_legend_text_color ||
-               previous_line != self.settings.custom_legend_line_color {
+
+            window_legend_settings::show(
+                ctx,
+                &mut self.legend_settings_window_open,
+                &mut self.settings,
+            );
+
+            if previous_bg != self.settings.custom_legend_bg_color
+                || previous_text != self.settings.custom_legend_text_color
+                || previous_line != self.settings.custom_legend_line_color
+            {
                 self.regenerate_spectrogram(ctx);
             }
         }
