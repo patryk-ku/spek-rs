@@ -1,3 +1,8 @@
+### v0.3.1
+
+- Fixed an issue where the spectrogram appeared blurry with fractional scaling enabled.
+- Updated dependencies.
+
 ### v0.3.0
 
 - Added color settings for a custom legend.
