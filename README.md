@@ -5,6 +5,7 @@
 <p align="center">
 <img alt="GitHub Release" src="https://img.shields.io/github/v/release/patryk-ku/spek-rs?label=%20&style=flat-square">
 <img alt="License" src="https://img.shields.io/badge/MIT-blue?style=flat-square">
+<img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/patryk-ku/spek-rs/total?style=flat-square">
 <img alt="Rust" src="https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white&color=CE412B&style=flat-square">
 <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black&style=flat-square">
 <img alt="Windows" src="https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11&logoColor=white&style=flat-square">
