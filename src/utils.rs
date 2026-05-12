@@ -393,26 +393,25 @@ pub fn cycle_option<T: PartialEq + Clone>(current: T, values: &[T], up: bool) ->
 
 pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
     if let Some(image) = image {
-        if let Some(pictures_dir) = dirs::picture_dir() {
-            let input_filename = Path::new(input_path)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("spectrogram");
+        let input_filename = Path::new(input_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("spectrogram")
+            .replace("/", "-");
 
-            if let Some(path) = rfd::FileDialog::new()
-                .set_file_name(&format!("{}.png", input_filename))
-                .set_directory(&pictures_dir)
-                .save_file()
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("PNG Image", &["png"])
+            .set_file_name(&format!("{}.png", input_filename))
+            .save_file()
+        {
+            let pixels: Vec<u8> = image.pixels.iter().flat_map(|p| p.to_array()).collect();
+            if let Some(rgba_image) =
+                image::RgbaImage::from_raw(image.width() as u32, image.height() as u32, pixels)
             {
-                let pixels: Vec<u8> = image.pixels.iter().flat_map(|p| p.to_array()).collect();
-                if let Some(rgba_image) =
-                    image::RgbaImage::from_raw(image.width() as u32, image.height() as u32, pixels)
-                {
-                    if let Err(e) = rgba_image.save(&path) {
-                        eprintln!("Failed to save image: {}", e);
-                    } else {
-                        println!("Image saved to {:?}", path);
-                    }
+                if let Err(e) = rgba_image.save(&path) {
+                    eprintln!("Failed to save image: {}", e);
+                } else {
+                    println!("Image saved to {:?}", path);
                 }
             }
         }
