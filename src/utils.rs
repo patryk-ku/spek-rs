@@ -410,6 +410,8 @@ pub fn save_image(image: &Option<ColorImage>, input_path: &String) {
             {
                 if let Err(e) = rgba_image.save(&path) {
                     eprintln!("Failed to save image: {}", e);
+                } else {
+                    println!("Image saved to {:?}", path);
                 }
             }
         }
