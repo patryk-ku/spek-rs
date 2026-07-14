@@ -202,7 +202,8 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
         ctx.input(|i| {
             if i.key_pressed(egui::Key::Escape) {
                 // https://github.com/emilk/egui/discussions/4103#discussioncomment-9225022
@@ -278,7 +279,7 @@ impl eframe::App for MyApp {
                     let path_str = path.to_string_lossy().to_string();
                     self.audio_info = utils::get_audio_info(&path_str);
                     self.input_path = Some(path_str);
-                    self.regenerate_spectrogram(ctx);
+                    self.regenerate_spectrogram(&ctx);
                 }
             }
         }
@@ -286,7 +287,7 @@ impl eframe::App for MyApp {
         let mut trigger_regeneration_due_to_resize = false;
         if self.settings.resize_with_window {
             let pixels_per_point = ctx.pixels_per_point();
-            let inner_size = ctx.available_rect().size();
+            let inner_size = ui.viewport_rect().size();
 
             // Legend margins in physical pixels (from src/legend.rs)
             let margin_w = (legend::LEFT_MARGIN + legend::RIGHT_MARGIN) as f32;
@@ -305,7 +306,7 @@ impl eframe::App for MyApp {
         }
 
         if trigger_regeneration_due_to_resize {
-            self.regenerate_spectrogram(ctx);
+            self.regenerate_spectrogram(&ctx);
         }
 
         let use_custom_legend =
@@ -359,7 +360,7 @@ impl eframe::App for MyApp {
 
                         // Save window size after live spectrogram is ready
                         if self.settings.save_window_size {
-                            let inner_size = ctx.available_rect().size();
+                            let inner_size = ui.viewport_rect().size();
                             self.settings.window_size = [inner_size.x, inner_size.y];
                             self.settings.save();
                         }
@@ -403,7 +404,7 @@ impl eframe::App for MyApp {
 
                             // Save window size after spectrogram is ready
                             if self.settings.save_window_size {
-                                let inner_size = ctx.available_rect().size();
+                                let inner_size = ui.viewport_rect().size();
                                 self.settings.window_size = [inner_size.x, inner_size.y];
                                 self.settings.save();
                             }
@@ -423,7 +424,7 @@ impl eframe::App for MyApp {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE.fill(Color32::BLACK))
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 egui::Frame::default()
                     .fill(ui.visuals().panel_fill)
                     .inner_margin(egui::Margin::same(8))
@@ -436,7 +437,8 @@ impl eframe::App for MyApp {
                             ui.strong("Spek-rs");
                             ui.label(format!("v{}", env!("CARGO_PKG_VERSION")));
                             ui.add_space(4.0);
-                            self.show_settings_panel(ctx, ui);
+                            let panel_ctx = ui.ctx().clone();
+                            self.show_settings_panel(&panel_ctx, ui);
                         });
                     });
 
@@ -484,15 +486,15 @@ impl eframe::App for MyApp {
             });
 
         if self.about_window_open {
-            window_about::show(ctx, &mut self.about_window_open);
+            window_about::show(&ctx, &mut self.about_window_open);
         }
 
         if self.keybindings_window_open {
-            window_keybindings::show(ctx, &mut self.keybindings_window_open);
+            window_keybindings::show(&ctx, &mut self.keybindings_window_open);
         }
 
         if self.help_window_open {
-            window_help::show(ctx, &mut self.help_window_open);
+            window_help::show(&ctx, &mut self.help_window_open);
         }
 
         if self.legend_settings_window_open {
@@ -501,7 +503,7 @@ impl eframe::App for MyApp {
             let previous_line = self.settings.custom_legend_line_color;
 
             window_legend_settings::show(
-                ctx,
+                &ctx,
                 &mut self.legend_settings_window_open,
                 &mut self.settings,
             );
@@ -510,7 +512,7 @@ impl eframe::App for MyApp {
                 || previous_text != self.settings.custom_legend_text_color
                 || previous_line != self.settings.custom_legend_line_color
             {
-                self.regenerate_spectrogram(ctx);
+                self.regenerate_spectrogram(&ctx);
             }
         }
     }
