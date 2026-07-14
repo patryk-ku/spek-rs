@@ -1,3 +1,9 @@
+### v0.3.3
+
+- Fixed missing application icon on Linux Wayland (#9).
+- Updated egui to 0.35.0.
+- Updated dependencies.
+
 ### v0.3.2
 
 - Fixed a bug that, in rare cases, caused the file dialog not to open on Linux after clicking the "Save As" button (#7, thanks @FGYada1984).

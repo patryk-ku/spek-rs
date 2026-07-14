@@ -78,15 +78,15 @@ impl FfmpegSetup {
 }
 
 impl eframe::App for FfmpegSetup {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if let Some(rx) = &self.status_rx {
             for status in rx.try_iter() {
                 self.status_message = status;
             }
         }
 
-        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(20));
-        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
+        let frame = egui::Frame::central_panel(ui.style()).inner_margin(egui::Margin::same(20));
+        egui::CentralPanel::default().frame(frame).show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                 ui.heading("FFmpeg Installation");
                 ui.add_space(15.0);
@@ -106,7 +106,7 @@ impl eframe::App for FfmpegSetup {
                         let exit_button =
                             egui::Button::new("  Exit  ").min_size(egui::vec2(120.0, 30.0));
                         if ui.add(exit_button).clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                            ui.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     } else {
                         ui.columns(3, |columns| {
@@ -120,7 +120,7 @@ impl eframe::App for FfmpegSetup {
                     }
 
                     if self.status_message == "Done!" {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        ui.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 } else {
                     ui.columns(2, |columns| {
@@ -135,7 +135,7 @@ impl eframe::App for FfmpegSetup {
                                     .min_size(egui::vec2(120.0, 30.0));
 
                                 if ui.add(install_button).clicked() {
-                                    self.start_install_ffmpeg(ctx);
+                                    self.start_install_ffmpeg(ui.ctx());
                                 }
                             });
                         });
@@ -144,7 +144,7 @@ impl eframe::App for FfmpegSetup {
                                 egui::Button::new("  Cancel  ").min_size(egui::vec2(120.0, 30.0));
 
                             if ui.add(cancel_button).clicked() {
-                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                                ui.send_viewport_cmd(egui::ViewportCommand::Close);
                             }
                         });
                     });
